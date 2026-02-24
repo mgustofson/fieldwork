@@ -5,129 +5,175 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Fieldwork — Client Kanban</title>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
   :root {
-    --bg: #0F0F10;
-    --surface: #16161A;
-    --surface2: #1C1C21;
-    --surface3: #222228;
-    --border: #2A2A30;
-    --border-subtle: #222228;
-    --text: #E2E2E6;
-    --text-muted: #6B6B78;
-    --text-dim: #4A4A55;
-    --accent: #5E6AD2;
-    --accent-hover: #6B78E0;
-    --todo-dot: #5E6AD2;
-    --progress-dot: #26B5A0;
-    --review-dot: #E8A838;
-    --done-dot: #4CAF7D;
+    --bg: #0F0F10; --surface: #16161A; --surface2: #1C1C21; --surface3: #222228;
+    --border: #2A2A30; --border-subtle: #222228;
+    --text: #E2E2E6; --text-muted: #6B6B78; --text-dim: #4A4A55;
+    --accent: #5E6AD2; --accent-hover: #6B78E0;
+    --todo-dot: #5E6AD2; --progress-dot: #26B5A0; --review-dot: #E8A838; --done-dot: #4CAF7D;
   }
 
   body {
     font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
-    background: var(--bg);
-    color: var(--text);
-    min-height: 100vh;
-    display: flex;
-    flex-direction: column;
-    overflow-x: hidden;
-    -webkit-font-smoothing: antialiased;
+    background: var(--bg); color: var(--text);
+    min-height: 100vh; display: flex; flex-direction: column;
+    overflow-x: hidden; -webkit-font-smoothing: antialiased;
   }
 
+  /* ── Auth Screen ─────────────────────────────────────── */
+  #authScreen {
+    position: fixed; inset: 0; background: var(--bg);
+    display: flex; align-items: center; justify-content: center;
+    z-index: 500;
+  }
+  .auth-card {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 12px; padding: 36px 32px; width: 360px;
+    max-width: calc(100vw - 32px);
+    box-shadow: 0 24px 80px rgba(0,0,0,0.5);
+    animation: slideUp 0.2s ease;
+  }
+  .auth-logo {
+    display: flex; align-items: center; gap: 10px;
+    margin-bottom: 28px;
+  }
+  .auth-logo-icon {
+    width: 28px; height: 28px; background: var(--accent);
+    border-radius: 7px; display: flex; align-items: center; justify-content: center;
+    font-size: 13px; font-weight: 700; color: white;
+  }
+  .auth-logo-text { font-size: 15px; font-weight: 600; letter-spacing: -0.3px; }
+  .auth-title { font-size: 18px; font-weight: 600; letter-spacing: -0.4px; margin-bottom: 6px; }
+  .auth-sub { font-size: 12.5px; color: var(--text-muted); margin-bottom: 24px; }
+  .auth-tabs {
+    display: flex; gap: 0; margin-bottom: 20px;
+    border: 1px solid var(--border); border-radius: 7px; padding: 3px;
+  }
+  .auth-tab {
+    flex: 1; padding: 6px; font-size: 12px; font-weight: 500; font-family: inherit;
+    background: none; border: none; color: var(--text-muted); cursor: pointer;
+    border-radius: 5px; transition: all 0.12s;
+  }
+  .auth-tab.active { background: var(--surface3); color: var(--text); }
+  .auth-field { margin-bottom: 12px; }
+  .auth-field label { display: block; font-size: 11px; font-weight: 500; color: var(--text-muted); margin-bottom: 4px; }
+  .auth-field input {
+    width: 100%; background: var(--surface2); border: 1px solid var(--border);
+    border-radius: 7px; padding: 9px 12px; font-size: 13px; font-family: inherit;
+    color: var(--text); outline: none; transition: border-color 0.12s;
+  }
+  .auth-field input:focus { border-color: var(--accent); }
+  .auth-btn {
+    width: 100%; background: var(--accent); color: white; border: none;
+    border-radius: 7px; padding: 10px; font-size: 13px; font-weight: 500;
+    font-family: inherit; cursor: pointer; margin-top: 8px;
+    transition: background 0.12s;
+  }
+  .auth-btn:hover { background: var(--accent-hover); }
+  .auth-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+  .auth-error {
+    background: rgba(224,82,82,0.1); border: 1px solid rgba(224,82,82,0.3);
+    color: #E07878; border-radius: 6px; padding: 8px 12px;
+    font-size: 12px; margin-top: 10px; display: none;
+  }
+  .auth-success {
+    background: rgba(76,175,125,0.1); border: 1px solid rgba(76,175,125,0.3);
+    color: #4CAF7D; border-radius: 6px; padding: 8px 12px;
+    font-size: 12px; margin-top: 10px; display: none;
+  }
+
+  /* ── Loading ─────────────────────────────────────────── */
+  #loadingScreen {
+    position: fixed; inset: 0; background: var(--bg);
+    display: flex; align-items: center; justify-content: center;
+    z-index: 400; flex-direction: column; gap: 14px;
+  }
+  .spinner {
+    width: 22px; height: 22px;
+    border: 2px solid var(--border);
+    border-top-color: var(--accent);
+    border-radius: 50%;
+    animation: spin 0.7s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .loading-text { font-size: 12px; color: var(--text-muted); }
+
+  /* ── Header ──────────────────────────────────────────── */
   header {
-    padding: 0 20px;
-    height: 48px;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    background: var(--surface);
-    border-bottom: 1px solid var(--border);
-    position: sticky;
-    top: 0;
-    z-index: 100;
+    padding: 0 20px; height: 48px;
+    display: flex; align-items: center; justify-content: space-between;
+    background: var(--surface); border-bottom: 1px solid var(--border);
+    position: sticky; top: 0; z-index: 100;
   }
-
-  .logo {
-    font-size: 13px; font-weight: 600; letter-spacing: -0.2px;
-    color: var(--text); display: flex; align-items: center; gap: 8px;
-  }
+  .logo { font-size: 13px; font-weight: 600; color: var(--text); display: flex; align-items: center; gap: 8px; }
   .logo-icon {
-    width: 20px; height: 20px; background: var(--accent);
-    border-radius: 5px; display: flex; align-items: center; justify-content: center;
+    width: 20px; height: 20px; background: var(--accent); border-radius: 5px;
+    display: flex; align-items: center; justify-content: center;
     font-size: 10px; font-weight: 700; color: white;
   }
-
   .header-controls { display: flex; align-items: center; gap: 6px; }
-
   .client-filter {
-    display: flex; align-items: center; gap: 6px;
-    background: transparent; border: 1px solid var(--border);
-    border-radius: 6px; padding: 5px 10px;
-    font-size: 12px; font-family: inherit;
+    background: transparent; border: 1px solid var(--border); border-radius: 6px;
+    padding: 5px 10px; font-size: 12px; font-family: inherit;
     color: var(--text-muted); cursor: pointer; transition: all 0.12s;
   }
   .client-filter:hover { border-color: #3A3A42; color: var(--text); background: var(--surface2); }
   select.client-filter { appearance: none; min-width: 140px; }
-
   .btn-primary {
-    background: var(--accent); color: white; border: none;
-    border-radius: 6px; padding: 5px 12px;
-    font-size: 12px; font-weight: 500; font-family: inherit;
-    cursor: pointer; transition: all 0.12s;
-    display: flex; align-items: center; gap: 5px;
+    background: var(--accent); color: white; border: none; border-radius: 6px;
+    padding: 5px 12px; font-size: 12px; font-weight: 500; font-family: inherit;
+    cursor: pointer; transition: all 0.12s; display: flex; align-items: center; gap: 5px;
   }
   .btn-primary:hover { background: var(--accent-hover); }
+  .user-btn {
+    background: var(--surface2); border: 1px solid var(--border); border-radius: 6px;
+    padding: 5px 10px; font-size: 12px; font-family: inherit;
+    color: var(--text-muted); cursor: pointer; transition: all 0.12s;
+    display: flex; align-items: center; gap: 5px;
+  }
+  .user-btn:hover { border-color: #3A3A42; color: var(--text); }
+  .user-dot {
+    width: 6px; height: 6px; border-radius: 50%; background: #4CAF7D;
+  }
 
+  /* ── Stats bar ───────────────────────────────────────── */
   .stats-bar {
-    padding: 0 20px; height: 36px;
-    display: flex; align-items: center; gap: 20px;
-    border-bottom: 1px solid var(--border-subtle);
-    background: var(--surface);
+    padding: 0 20px; height: 36px; display: flex; align-items: center; gap: 20px;
+    border-bottom: 1px solid var(--border-subtle); background: var(--surface);
   }
   .stat { display: flex; align-items: center; gap: 6px; font-size: 11.5px; color: var(--text-muted); }
   .stat strong { color: var(--text); font-weight: 500; }
   .stat-divider { width: 1px; height: 12px; background: var(--border); }
+  .sync-indicator { display: flex; align-items: center; gap: 5px; font-size: 11px; color: var(--text-dim); margin-left: auto; }
+  .sync-dot { width: 5px; height: 5px; border-radius: 50%; background: var(--text-dim); }
+  .sync-dot.syncing { background: var(--accent); animation: pulse 1s ease infinite; }
+  .sync-dot.synced  { background: #4CAF7D; }
+  .sync-dot.error   { background: #E05252; }
+  @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.3; } }
 
-  .board {
-    display: flex; padding: 20px; overflow-x: auto;
-    flex: 1; align-items: flex-start; gap: 12px;
-  }
+  /* ── Board ───────────────────────────────────────────── */
+  .board { display: flex; padding: 20px; overflow-x: auto; flex: 1; align-items: flex-start; gap: 12px; }
 
   .column {
     flex: 0 0 270px; display: flex; flex-direction: column;
     background: var(--surface); border: 1px solid var(--border);
     border-radius: 8px; overflow: hidden;
   }
-
   .col-header {
     display: flex; align-items: center; justify-content: space-between;
     padding: 10px 12px; border-bottom: 1px solid var(--border-subtle);
   }
-  .col-title {
-    display: flex; align-items: center; gap: 7px;
-    font-size: 12px; font-weight: 500; color: var(--text-muted);
-  }
+  .col-title { display: flex; align-items: center; gap: 7px; font-size: 12px; font-weight: 500; color: var(--text-muted); }
   .col-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
   .col-count { color: var(--text-dim); font-size: 11px; font-weight: 400; }
-  .col-add {
-    background: none; border: none; cursor: pointer;
-    color: var(--text-dim); font-size: 16px; line-height: 1;
-    transition: color 0.12s; padding: 0 2px;
-  }
+  .col-add { background: none; border: none; cursor: pointer; color: var(--text-dim); font-size: 16px; line-height: 1; transition: color 0.12s; padding: 0 2px; }
   .col-add:hover { color: var(--text-muted); }
-
-  .col-body {
-    padding: 8px; display: flex; flex-direction: column;
-    gap: 4px; min-height: 80px; transition: background 0.12s;
-  }
-  .col-body.drag-over {
-    background: rgba(94,106,210,0.05) !important;
-    outline: 1px solid rgba(94,106,210,0.3);
-    outline-offset: -1px; border-radius: 4px;
-  }
+  .col-body { padding: 8px; display: flex; flex-direction: column; gap: 4px; min-height: 80px; transition: background 0.12s; }
+  .col-body.drag-over { background: rgba(94,106,210,0.05) !important; outline: 1px solid rgba(94,106,210,0.3); outline-offset: -1px; border-radius: 4px; }
 
   [data-col="todo"] .col-dot     { background: var(--todo-dot); }
   [data-col="progress"] .col-dot { background: var(--progress-dot); }
@@ -140,297 +186,242 @@
     background: var(--surface3); border: 1px solid var(--border);
     border-radius: 4px; padding: 1px 6px;
   }
-
   #col-week .card { border-left: 2px solid rgba(224,82,82,0.35); }
   #col-week .card.overdue-card { border-left-color: #E05252; }
 
-  /* Cards */
+  /* ── Cards ───────────────────────────────────────────── */
   .card {
     background: var(--surface2); border: 1px solid var(--border-subtle);
     border-radius: 6px; padding: 10px 11px; cursor: grab;
     transition: border-color 0.12s, background 0.12s;
     position: relative; animation: cardIn 0.15s ease;
   }
-  @keyframes cardIn { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: translateY(0); } }
+  @keyframes cardIn { from { opacity:0; transform:translateY(-4px); } to { opacity:1; transform:translateY(0); } }
   .card:hover { border-color: #35353D; background: var(--surface3); }
   .card.dragging { opacity: 0.35; cursor: grabbing; }
-
-  .card-client-badge {
-    display: inline-flex; align-items: center;
-    font-size: 10px; font-weight: 500; padding: 1px 6px;
-    border-radius: 3px; margin-bottom: 6px;
-  }
-  .card-title {
-    font-size: 12.5px; font-weight: 400; line-height: 1.45;
-    margin-bottom: 8px; color: var(--text); letter-spacing: -0.1px;
-  }
+  .card-client-badge { display: inline-flex; align-items: center; font-size: 10px; font-weight: 500; padding: 1px 6px; border-radius: 3px; margin-bottom: 6px; }
+  .card-title { font-size: 12.5px; font-weight: 400; line-height: 1.45; margin-bottom: 8px; color: var(--text); letter-spacing: -0.1px; }
   .card-meta { display: flex; align-items: center; justify-content: space-between; gap: 6px; }
-  .card-due { font-size: 10.5px; color: var(--text-dim); display: flex; align-items: center; gap: 3px; }
+  .card-due { font-size: 10.5px; color: var(--text-dim); }
   .card-due.overdue { color: #E05252; }
   .card-priority { font-size: 10px; font-weight: 500; padding: 1px 5px; border-radius: 3px; }
   .priority-high { background: rgba(224,82,82,0.15); color: #E07878; }
   .priority-med  { background: rgba(232,168,56,0.12); color: #C89A44; }
   .priority-low  { background: rgba(76,175,125,0.12); color: #4CAF7D; }
-
   .card-actions { position: absolute; top: 7px; right: 8px; display: none; gap: 3px; }
   .card:hover .card-actions { display: flex; }
   .card-btn {
-    background: var(--surface3); border: 1px solid var(--border);
-    border-radius: 4px; width: 20px; height: 20px; cursor: pointer;
-    font-size: 10px; display: flex; align-items: center; justify-content: center;
+    background: var(--surface3); border: 1px solid var(--border); border-radius: 4px;
+    width: 20px; height: 20px; cursor: pointer; font-size: 10px;
+    display: flex; align-items: center; justify-content: center;
     transition: all 0.1s; color: var(--text-muted);
   }
   .card-btn:hover { background: var(--accent); color: white; border-color: var(--accent); }
 
-  /* Collapsible Inbox */
+  /* ── Collapsible Inbox ───────────────────────────────── */
   .column-collapsible { transition: flex-basis 0.25s cubic-bezier(0.4,0,0.2,1), min-width 0.25s cubic-bezier(0.4,0,0.2,1); }
   .column-collapsible.collapsed { flex-basis: 38px !important; min-width: 38px !important; max-width: 38px; }
-  .column-collapsible.collapsed .col-header {
-    flex-direction: column; align-items: center; justify-content: flex-start;
-    padding: 12px 0 8px; gap: 8px; height: auto; cursor: pointer;
-  }
-  .column-collapsible.collapsed .col-title {
-    writing-mode: vertical-rl; transform: rotate(180deg);
-    font-size: 11px; gap: 6px; flex-direction: row-reverse;
-  }
+  .column-collapsible.collapsed .col-header { flex-direction: column; align-items: center; justify-content: flex-start; padding: 12px 0 8px; gap: 8px; height: auto; cursor: pointer; }
+  .column-collapsible.collapsed .col-title { writing-mode: vertical-rl; transform: rotate(180deg); font-size: 11px; gap: 6px; flex-direction: row-reverse; }
   .column-collapsible.collapsed .col-count { font-size: 10px; }
   .col-body-collapsible { transition: opacity 0.2s ease; }
   .column-collapsible.collapsed .col-body-collapsible { display: none; }
   .column-collapsible.collapsed .col-collapse-btn { transform: rotate(90deg); }
-  .col-collapse-btn {
-    transition: transform 0.2s ease; display: flex; align-items: center; justify-content: center;
-    color: var(--text-dim); background: none; border: none; cursor: pointer; padding: 2px; border-radius: 3px;
-  }
+  .col-collapse-btn { transition: transform 0.2s ease; display: flex; align-items: center; justify-content: center; color: var(--text-dim); background: none; border: none; cursor: pointer; padding: 2px; border-radius: 3px; }
   .col-collapse-btn:hover { color: var(--text-muted); background: var(--surface3); }
   .column-collapsible.collapsed .col-header > div:last-child { flex-direction: column; gap: 4px; align-items: center; }
 
-  /* Modal */
-  .modal-backdrop {
-    position: fixed; inset: 0; background: rgba(0,0,0,0.6);
-    z-index: 1000; display: flex; align-items: center; justify-content: center;
-    backdrop-filter: blur(4px); animation: fadeIn 0.12s;
-  }
-  @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
-
-  .modal {
-    background: var(--surface2); border: 1px solid var(--border);
-    border-radius: 10px; width: 420px; max-width: calc(100vw - 32px);
-    padding: 24px; animation: slideUp 0.15s ease;
-    box-shadow: 0 24px 80px rgba(0,0,0,0.5);
-  }
-  @keyframes slideUp { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
-  .modal h2 { font-size: 14px; font-weight: 600; margin-bottom: 18px; letter-spacing: -0.2px; }
+  /* ── Modal ───────────────────────────────────────────── */
+  .modal-backdrop { position: fixed; inset: 0; background: rgba(0,0,0,0.6); z-index: 1000; display: flex; align-items: center; justify-content: center; backdrop-filter: blur(4px); animation: fadeIn 0.12s; }
+  @keyframes fadeIn { from { opacity:0; } to { opacity:1; } }
+  .modal { background: var(--surface2); border: 1px solid var(--border); border-radius: 10px; width: 420px; max-width: calc(100vw - 32px); padding: 24px; animation: slideUp 0.15s ease; box-shadow: 0 24px 80px rgba(0,0,0,0.5); }
+  @keyframes slideUp { from { opacity:0; transform:translateY(10px); } to { opacity:1; transform:translateY(0); } }
+  .modal h2 { font-size: 14px; font-weight: 600; margin-bottom: 18px; }
   .form-group { margin-bottom: 12px; }
-  label { display: block; font-size: 11px; font-weight: 500; letter-spacing: 0.02em; color: var(--text-muted); margin-bottom: 4px; }
-  input, select, textarea {
-    width: 100%; background: var(--surface); border: 1px solid var(--border);
-    border-radius: 6px; padding: 7px 10px; font-size: 13px;
-    font-family: inherit; color: var(--text); outline: none; transition: border-color 0.12s;
-  }
+  label { display: block; font-size: 11px; font-weight: 500; color: var(--text-muted); margin-bottom: 4px; }
+  input, select, textarea { width: 100%; background: var(--surface); border: 1px solid var(--border); border-radius: 6px; padding: 7px 10px; font-size: 13px; font-family: inherit; color: var(--text); outline: none; transition: border-color 0.12s; }
   input:focus, select:focus, textarea:focus { border-color: var(--accent); }
   select option { background: var(--surface2); }
   textarea { resize: vertical; min-height: 64px; }
   .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
   .modal-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 18px; }
-  .btn-ghost {
-    background: none; border: 1px solid var(--border); border-radius: 6px;
-    padding: 6px 14px; font-size: 12px; font-weight: 500; font-family: inherit;
-    cursor: pointer; color: var(--text-muted); transition: all 0.12s;
-  }
+  .btn-ghost { background: none; border: 1px solid var(--border); border-radius: 6px; padding: 6px 14px; font-size: 12px; font-weight: 500; font-family: inherit; cursor: pointer; color: var(--text-muted); transition: all 0.12s; }
   .btn-ghost:hover { border-color: #3A3A42; color: var(--text); background: var(--surface3); }
-
-  .client-chip {
-    display: inline-flex; align-items: center; gap: 5px;
-    padding: 3px 8px; border-radius: 4px; font-size: 11px; font-weight: 500; margin: 2px;
-  }
-  .client-chip button { background: none; border: none; cursor: pointer; font-size: 13px; line-height: 1; opacity: 0.4; padding: 0; width: auto; color: inherit; }
+  .client-chip { display: inline-flex; align-items: center; gap: 5px; padding: 3px 8px; border-radius: 4px; font-size: 11px; font-weight: 500; margin: 2px; }
+  .client-chip button { background: none; border: none; cursor: pointer; font-size: 13px; opacity: 0.4; padding: 0; color: inherit; }
   .client-chip button:hover { opacity: 1; }
 
   .empty-col { text-align: center; padding: 24px 16px; color: var(--text-dim); font-size: 11.5px; }
-
-  .toast {
-    position: fixed; bottom: 20px; right: 20px;
-    background: var(--surface3); border: 1px solid var(--border);
-    color: var(--text); padding: 8px 14px; border-radius: 6px;
-    font-size: 12px; z-index: 9999; animation: toastIn 0.15s ease;
-    box-shadow: 0 8px 24px rgba(0,0,0,0.3);
-  }
-  @keyframes toastIn { from { opacity: 0; transform: translateY(6px); } }
-
+  .toast { position: fixed; bottom: 20px; right: 20px; background: var(--surface3); border: 1px solid var(--border); color: var(--text); padding: 8px 14px; border-radius: 6px; font-size: 12px; z-index: 9999; animation: toastIn 0.15s ease; box-shadow: 0 8px 24px rgba(0,0,0,0.3); }
+  @keyframes toastIn { from { opacity:0; transform:translateY(6px); } }
   .hidden { display: none !important; }
 
-  .drop-indicator {
-    height: 2px; background: var(--accent); border-radius: 2px;
-    margin: 2px 0; position: relative; pointer-events: none;
-  }
-  .drop-indicator::before {
-    content: ''; position: absolute; left: -3px; top: -3px;
-    width: 8px; height: 8px; border-radius: 50%; background: var(--accent);
-  }
+  .drop-indicator { height: 2px; background: var(--accent); border-radius: 2px; margin: 2px 0; position: relative; pointer-events: none; }
+  .drop-indicator::before { content:''; position: absolute; left:-3px; top:-3px; width:8px; height:8px; border-radius:50%; background: var(--accent); }
 
-  /* Detail Drawer */
-  .drawer-backdrop {
-    position: fixed; inset: 0; background: rgba(0,0,0,0.45);
-    z-index: 200; backdrop-filter: blur(2px); animation: fadeIn 0.15s ease;
-  }
-  .drawer {
-    position: fixed; top: 0; right: 0; bottom: 0;
-    width: 420px; max-width: 100vw; background: var(--surface);
-    border-left: 1px solid var(--border); z-index: 201;
-    display: flex; flex-direction: column;
-    animation: drawerIn 0.2s cubic-bezier(0.16,1,0.3,1);
-    box-shadow: -20px 0 60px rgba(0,0,0,0.4);
-  }
-  @keyframes drawerIn { from { transform: translateX(100%); opacity: 0.5; } to { transform: translateX(0); opacity: 1; } }
-
-  .drawer-header {
-    display: flex; align-items: center; justify-content: space-between;
-    padding: 14px 16px 12px; border-bottom: 1px solid var(--border-subtle);
-    gap: 10px; flex-shrink: 0;
-  }
+  /* ── Detail Drawer ───────────────────────────────────── */
+  .drawer-backdrop { position: fixed; inset: 0; background: rgba(0,0,0,0.45); z-index: 200; backdrop-filter: blur(2px); }
+  .drawer { position: fixed; top:0; right:0; bottom:0; width:420px; max-width:100vw; background: var(--surface); border-left: 1px solid var(--border); z-index: 201; display: flex; flex-direction: column; animation: drawerIn 0.2s cubic-bezier(0.16,1,0.3,1); box-shadow: -20px 0 60px rgba(0,0,0,0.4); }
+  @keyframes drawerIn { from { transform:translateX(100%); opacity:0.5; } to { transform:translateX(0); opacity:1; } }
+  .drawer-header { display: flex; align-items: center; justify-content: space-between; padding: 14px 16px 12px; border-bottom: 1px solid var(--border-subtle); gap: 10px; flex-shrink: 0; }
   .drawer-breadcrumb { display: flex; align-items: center; gap: 6px; font-size: 11px; color: var(--text-dim); }
   .drawer-header-actions { display: flex; align-items: center; gap: 4px; }
-  .drawer-icon-btn {
-    background: none; border: 1px solid transparent; border-radius: 5px;
-    width: 26px; height: 26px; display: flex; align-items: center; justify-content: center;
-    cursor: pointer; color: var(--text-muted); font-size: 13px; transition: all 0.1s;
-  }
+  .drawer-icon-btn { background: none; border: 1px solid transparent; border-radius: 5px; width: 26px; height: 26px; display: flex; align-items: center; justify-content: center; cursor: pointer; color: var(--text-muted); transition: all 0.1s; }
   .drawer-icon-btn:hover { background: var(--surface3); border-color: var(--border); color: var(--text); }
-
   .drawer-body { flex: 1; overflow-y: auto; padding: 20px 20px 0; }
   .drawer-body::-webkit-scrollbar { width: 4px; }
   .drawer-body::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
-
-  .drawer-title-input {
-    width: 100%; background: none; border: none; font-family: inherit;
-    font-size: 18px; font-weight: 600; color: var(--text); letter-spacing: -0.4px;
-    line-height: 1.3; outline: none; padding: 0; margin-bottom: 16px;
-    resize: none; overflow: hidden;
-  }
+  .drawer-title-input { width: 100%; background: none; border: none; font-family: inherit; font-size: 18px; font-weight: 600; color: var(--text); letter-spacing: -0.4px; line-height: 1.3; outline: none; padding: 0; margin-bottom: 16px; resize: none; overflow: hidden; }
   .drawer-title-input::placeholder { color: var(--text-dim); }
-
   .drawer-props { display: flex; flex-direction: column; gap: 2px; margin-bottom: 20px; }
   .drawer-prop { display: flex; align-items: center; border-radius: 5px; padding: 5px 4px; transition: background 0.1s; }
   .drawer-prop:hover { background: var(--surface2); }
   .drawer-prop-label { width: 110px; flex-shrink: 0; font-size: 12px; color: var(--text-dim); display: flex; align-items: center; gap: 6px; }
   .drawer-prop-value { flex: 1; font-size: 12px; color: var(--text-muted); }
-  .drawer-prop select, .drawer-prop input[type="date"] {
-    background: none; border: none; font-family: inherit; font-size: 12px;
-    color: var(--text-muted); outline: none; padding: 0; cursor: pointer; width: 100%;
-  }
+  .drawer-prop select, .drawer-prop input[type="date"] { background: none; border: none; font-family: inherit; font-size: 12px; color: var(--text-muted); outline: none; padding: 0; cursor: pointer; width: 100%; }
   .drawer-prop select:hover, .drawer-prop input[type="date"]:hover { color: var(--text); }
   .drawer-prop select option { background: var(--surface2); color: var(--text); }
-
   .drawer-divider { height: 1px; background: var(--border-subtle); margin: 4px 0 16px; }
   .drawer-section-label { font-size: 11px; font-weight: 500; color: var(--text-dim); letter-spacing: 0.05em; text-transform: uppercase; margin-bottom: 8px; }
-  .drawer-notes-input {
-    width: 100%; background: none; border: none; font-family: inherit;
-    font-size: 13px; color: var(--text-muted); outline: none; resize: none;
-    min-height: 100px; line-height: 1.6; padding: 0;
-  }
+  .drawer-notes-input { width: 100%; background: none; border: none; font-family: inherit; font-size: 13px; color: var(--text-muted); outline: none; resize: none; min-height: 100px; line-height: 1.6; padding: 0; }
   .drawer-notes-input::placeholder { color: var(--text-dim); }
   .drawer-notes-input:focus { color: var(--text); }
-
-  .drawer-footer {
-    padding: 12px 20px 16px; border-top: 1px solid var(--border-subtle);
-    display: flex; align-items: center; justify-content: space-between; flex-shrink: 0;
-  }
+  .drawer-footer { padding: 12px 20px 16px; border-top: 1px solid var(--border-subtle); display: flex; align-items: center; justify-content: space-between; flex-shrink: 0; }
   .drawer-meta-info { font-size: 11px; color: var(--text-dim); }
-  .drawer-delete-btn {
-    background: none; border: 1px solid transparent; border-radius: 5px;
-    padding: 4px 10px; font-size: 11.5px; font-family: inherit;
-    color: var(--text-dim); cursor: pointer; transition: all 0.12s;
-    display: flex; align-items: center; gap: 5px;
-  }
+  .drawer-delete-btn { background: none; border: 1px solid transparent; border-radius: 5px; padding: 4px 10px; font-size: 11.5px; font-family: inherit; color: var(--text-dim); cursor: pointer; transition: all 0.12s; display: flex; align-items: center; gap: 5px; }
   .drawer-delete-btn:hover { background: rgba(224,82,82,0.1); border-color: rgba(224,82,82,0.3); color: #E07878; }
 </style>
 </head>
 <body>
 
-<header>
-  <div class="logo"><div class="logo-icon">FW</div> Fieldwork</div>
-  <div class="header-controls">
-    <select class="client-filter" id="filterSelect" onchange="filterByClient()">
-      <option value="all">All Clients</option>
-    </select>
-    <button class="client-filter" onclick="openClientManager()">⊕ Clients</button>
-    <button class="btn-primary" onclick="openAddCard()">+ Add Task</button>
-  </div>
-</header>
-
-<div class="stats-bar">
-  <div class="stat"><strong id="statTotal">0</strong>&nbsp;Tasks</div>
-  <div class="stat-divider"></div>
-  <div class="stat"><strong id="statClients">0</strong>&nbsp;Clients</div>
-  <div class="stat-divider"></div>
-  <div class="stat"><strong id="statInProgress">0</strong>&nbsp;In Progress</div>
-  <div class="stat-divider"></div>
-  <div class="stat"><strong id="statOverdue">0</strong>&nbsp;Overdue</div>
+<!-- Loading screen -->
+<div id="loadingScreen">
+  <div class="spinner"></div>
+  <div class="loading-text">Loading Fieldwork…</div>
 </div>
 
-<div class="board">
-
-  <!-- Inbox (collapsible) -->
-  <div class="column column-collapsible" data-col="todo" id="col-todo-wrap">
-    <div class="col-header" onclick="toggleTodo()" style="cursor:pointer;">
-      <div class="col-title"><span class="col-dot"></span> Inbox</div>
-      <div style="display:flex;align-items:center;gap:8px;" onclick="event.stopPropagation()">
-        <span class="col-count" id="count-todo">0</span>
-        <button class="col-add" onclick="openAddCard('todo')" title="Add task">+</button>
-        <button class="col-collapse-btn" id="todo-collapse-icon" onclick="toggleTodo()" title="Collapse">
-          <svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M2 4l3-3 3 3M2 7l3 3 3-3"/></svg>
-        </button>
-      </div>
+<!-- Auth screen -->
+<div id="authScreen" class="hidden">
+  <div class="auth-card">
+    <div class="auth-logo">
+      <div class="auth-logo-icon">FW</div>
+      <div class="auth-logo-text">Fieldwork</div>
     </div>
-    <div class="col-body col-body-collapsible" id="col-todo" ondragover="onDragOver(event)" ondrop="onDrop(event,'todo')" ondragleave="onDragLeave(event)"></div>
+    <div class="auth-title">Welcome back</div>
+    <div class="auth-sub">Sign in to access your tasks</div>
+    <div class="auth-tabs">
+      <button class="auth-tab active" onclick="switchTab('signin')">Sign in</button>
+      <button class="auth-tab" onclick="switchTab('signup')">Create account</button>
+    </div>
+    <div class="auth-field">
+      <label>Email</label>
+      <input type="email" id="authEmail" placeholder="you@example.com" />
+    </div>
+    <div class="auth-field">
+      <label>Password</label>
+      <input type="password" id="authPassword" placeholder="••••••••" onkeydown="if(event.key==='Enter')submitAuth()" />
+    </div>
+    <button class="auth-btn" id="authSubmitBtn" onclick="submitAuth()">Sign in</button>
+    <div class="auth-error" id="authError"></div>
+    <div class="auth-success" id="authSuccess"></div>
+  </div>
+</div>
+
+<!-- App (hidden until authed) -->
+<div id="app" class="hidden">
+  <header>
+    <div class="logo"><div class="logo-icon">FW</div> Fieldwork</div>
+    <div class="header-controls">
+      <select class="client-filter" id="filterSelect" onchange="filterByClient()">
+        <option value="all">All Clients</option>
+      </select>
+      <button class="client-filter" onclick="openClientManager()">⊕ Clients</button>
+      <button class="btn-primary" onclick="openAddCard()">+ Add Task</button>
+      <button class="user-btn" id="userBtn" onclick="signOut()">
+        <span class="user-dot"></span>
+        <span id="userEmail"></span>
+        · Sign out
+      </button>
+    </div>
+  </header>
+
+  <div class="stats-bar">
+    <div class="stat"><strong id="statTotal">0</strong>&nbsp;Tasks</div>
+    <div class="stat-divider"></div>
+    <div class="stat"><strong id="statClients">0</strong>&nbsp;Clients</div>
+    <div class="stat-divider"></div>
+    <div class="stat"><strong id="statInProgress">0</strong>&nbsp;In Progress</div>
+    <div class="stat-divider"></div>
+    <div class="stat"><strong id="statOverdue">0</strong>&nbsp;Overdue</div>
+    <div class="sync-indicator">
+      <div class="sync-dot" id="syncDot"></div>
+      <span id="syncLabel">—</span>
+    </div>
   </div>
 
-  <!-- To Do This Week -->
-  <div class="column" data-col="week">
-    <div class="col-header">
-      <div class="col-title"><span class="col-dot"></span> To Do This Week</div>
-      <div style="display:flex;align-items:center;gap:8px;">
-        <span class="col-count" id="count-week">0</span>
-        <span class="col-readonly-badge">auto</span>
+  <div class="board">
+    <!-- Inbox (collapsible) -->
+    <div class="column column-collapsible" data-col="todo" id="col-todo-wrap">
+      <div class="col-header" onclick="toggleTodo()" style="cursor:pointer;">
+        <div class="col-title"><span class="col-dot"></span> Inbox</div>
+        <div style="display:flex;align-items:center;gap:8px;" onclick="event.stopPropagation()">
+          <span class="col-count" id="count-todo">0</span>
+          <button class="col-add" onclick="openAddCard('todo')" title="Add task">+</button>
+          <button class="col-collapse-btn" id="todo-collapse-icon" onclick="toggleTodo()" title="Collapse">
+            <svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M2 4l3-3 3 3M2 7l3 3 3-3"/></svg>
+          </button>
+        </div>
       </div>
+      <div class="col-body col-body-collapsible" id="col-todo" ondragover="onDragOver(event)" ondrop="onDrop(event,'todo')" ondragleave="onDragLeave(event)"></div>
     </div>
-    <div class="col-body" id="col-week" ondragover="onDragOver(event)" ondrop="onDrop(event,'todo')" ondragleave="onDragLeave(event)"></div>
-  </div>
 
-  <!-- In Progress -->
-  <div class="column" data-col="progress">
-    <div class="col-header">
-      <div class="col-title"><span class="col-dot"></span> In Progress</div>
-      <div style="display:flex;align-items:center;gap:8px;">
-        <span class="col-count" id="count-progress">0</span>
-        <button class="col-add" onclick="openAddCard('progress')" title="Add task">+</button>
+    <!-- To Do This Week -->
+    <div class="column" data-col="week">
+      <div class="col-header">
+        <div class="col-title"><span class="col-dot"></span> To Do This Week</div>
+        <div style="display:flex;align-items:center;gap:8px;">
+          <span class="col-count" id="count-week">0</span>
+          <span class="col-readonly-badge">auto</span>
+        </div>
       </div>
+      <div class="col-body" id="col-week" ondragover="onDragOver(event)" ondrop="onDrop(event,'todo')" ondragleave="onDragLeave(event)"></div>
     </div>
-    <div class="col-body" id="col-progress" ondragover="onDragOver(event)" ondrop="onDrop(event,'progress')" ondragleave="onDragLeave(event)"></div>
-  </div>
 
-  <!-- Review -->
-  <div class="column" data-col="review">
-    <div class="col-header">
-      <div class="col-title"><span class="col-dot"></span> Review</div>
-      <div style="display:flex;align-items:center;gap:8px;">
-        <span class="col-count" id="count-review">0</span>
-        <button class="col-add" onclick="openAddCard('review')" title="Add task">+</button>
+    <!-- In Progress -->
+    <div class="column" data-col="progress">
+      <div class="col-header">
+        <div class="col-title"><span class="col-dot"></span> In Progress</div>
+        <div style="display:flex;align-items:center;gap:8px;">
+          <span class="col-count" id="count-progress">0</span>
+          <button class="col-add" onclick="openAddCard('progress')" title="Add task">+</button>
+        </div>
       </div>
+      <div class="col-body" id="col-progress" ondragover="onDragOver(event)" ondrop="onDrop(event,'progress')" ondragleave="onDragLeave(event)"></div>
     </div>
-    <div class="col-body" id="col-review" ondragover="onDragOver(event)" ondrop="onDrop(event,'review')" ondragleave="onDragLeave(event)"></div>
-  </div>
 
-  <!-- Done -->
-  <div class="column" data-col="done">
-    <div class="col-header">
-      <div class="col-title"><span class="col-dot"></span> Done</div>
-      <div style="display:flex;align-items:center;gap:8px;">
-        <span class="col-count" id="count-done">0</span>
-        <button class="col-add" onclick="openAddCard('done')" title="Add task">+</button>
+    <!-- Review -->
+    <div class="column" data-col="review">
+      <div class="col-header">
+        <div class="col-title"><span class="col-dot"></span> Review</div>
+        <div style="display:flex;align-items:center;gap:8px;">
+          <span class="col-count" id="count-review">0</span>
+          <button class="col-add" onclick="openAddCard('review')" title="Add task">+</button>
+        </div>
       </div>
+      <div class="col-body" id="col-review" ondragover="onDragOver(event)" ondrop="onDrop(event,'review')" ondragleave="onDragLeave(event)"></div>
     </div>
-    <div class="col-body" id="col-done" ondragover="onDragOver(event)" ondrop="onDrop(event,'done')" ondragleave="onDragLeave(event)"></div>
+
+    <!-- Done -->
+    <div class="column" data-col="done">
+      <div class="col-header">
+        <div class="col-title"><span class="col-dot"></span> Done</div>
+        <div style="display:flex;align-items:center;gap:8px;">
+          <span class="col-count" id="count-done">0</span>
+          <button class="col-add" onclick="openAddCard('done')" title="Add task">+</button>
+        </div>
+      </div>
+      <div class="col-body" id="col-done" ondragover="onDragOver(event)" ondrop="onDrop(event,'done')" ondragleave="onDragLeave(event)"></div>
+    </div>
   </div>
 </div>
 
@@ -523,8 +514,7 @@
     </div>
   </div>
   <div class="drawer-body">
-    <textarea class="drawer-title-input" id="drawerTitle" rows="1" placeholder="Task title"
-      oninput="autoResizeTextarea(this); drawerAutoSave()"></textarea>
+    <textarea class="drawer-title-input" id="drawerTitle" rows="1" placeholder="Task title" oninput="autoResizeTextarea(this); drawerAutoSave()"></textarea>
     <div class="drawer-props">
       <div class="drawer-prop">
         <div class="drawer-prop-label">
@@ -576,8 +566,7 @@
     </div>
     <div class="drawer-divider"></div>
     <div class="drawer-section-label">Notes</div>
-    <textarea class="drawer-notes-input" id="drawerNotes" placeholder="Add notes, links, context…"
-      oninput="autoResizeTextarea(this); drawerAutoSave()"></textarea>
+    <textarea class="drawer-notes-input" id="drawerNotes" placeholder="Add notes, links, context…" oninput="autoResizeTextarea(this); drawerAutoSave()"></textarea>
   </div>
   <div class="drawer-footer">
     <div class="drawer-meta-info" id="drawerMetaInfo"></div>
@@ -589,106 +578,190 @@
 </div>
 
 <script>
-// ─── State ────────────────────────────────────────────────────────────────────
-let data         = { clients: [], cards: [] };
+// ─── CONFIG — replace these two values after Supabase setup ──────────────────
+const SUPABASE_URL    = 'https://xdtswmevexfmnhzcuqsj.supabase.co';
+const SUPABASE_ANON_KEY = 'PeyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhkdHN3bWV2ZXhmbW5oemN1cXNqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzE5NjEzMjksImV4cCI6MjA4NzUzNzMyOX0.qXUngq8Np59di25C7gF9vccJ2WytMpAw4tXw4rG4Tlc';
+
+// ─── Init Supabase ────────────────────────────────────────────────────────────
+const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+// ─── App state ────────────────────────────────────────────────────────────────
+let data          = { clients: [], cards: [] };
+let currentUser   = null;
 let editingCardId = null;
 let dragCardId    = null;
 let todoCollapsed = false;
 
-const STORAGE_KEY = 'fieldwork_v1';
-const COL_LABELS  = { todo: 'Inbox', progress: 'In Progress', review: 'Review', done: 'Done' };
-const PRANK       = { high: 0, med: 1, low: 2 };
+const COL_LABELS = { todo: 'Inbox', progress: 'In Progress', review: 'Review', done: 'Done' };
+const PRANK      = { high: 0, med: 1, low: 2 };
 
-// ─── Storage ──────────────────────────────────────────────────────────────────
-function save() { localStorage.setItem(STORAGE_KEY, JSON.stringify(data)); }
-
-function load() {
-  try { const r = localStorage.getItem(STORAGE_KEY); if (r) data = JSON.parse(r); } catch(e) {}
-  if (!data.clients) data.clients = [];
-  if (!data.cards)   data.cards   = [];
-  if (data.clients.length === 0) seedDemo();
-  save();
+// ─── Sync indicator ───────────────────────────────────────────────────────────
+function setSyncState(state) {
+  const dot   = document.getElementById('syncDot');
+  const label = document.getElementById('syncLabel');
+  if (!dot) return;
+  dot.className   = 'sync-dot ' + state;
+  label.textContent = state === 'syncing' ? 'Saving…' : state === 'synced' ? 'Saved' : 'Offline';
 }
 
-function seedDemo() {
-  data.clients = [
-    { id: uid(), name: 'Acme Corp',    color: '#C85A2A' },
-    { id: uid(), name: 'Spark Studio', color: '#2A7AC8' },
-  ];
-  const [c1, c2] = [data.clients[0].id, data.clients[1].id];
-  data.cards = [
-    { id: uid(), title: 'Discovery kickoff call',      client: c1, status: 'done',     priority: 'high', due: '',          notes: '', order: 100 },
-    { id: uid(), title: 'Competitive audit',           client: c1, status: 'done',     priority: 'med',  due: '',          notes: '', order: 200 },
-    { id: uid(), title: 'Homepage redesign',           client: c1, status: 'progress', priority: 'high', due: fmtDate(3),  notes: '', order: 100 },
-    { id: uid(), title: 'Write copy for landing page', client: c2, status: 'todo',     priority: 'med',  due: fmtDate(14), notes: '', order: 200 },
-    { id: uid(), title: 'Brand guidelines review',     client: c2, status: 'review',   priority: 'low',  due: fmtDate(2),  notes: '', order: 100 },
-    { id: uid(), title: 'Update component library',    client: c1, status: 'todo',     priority: 'high', due: fmtDate(4),  notes: '', order: 100 },
-  ];
+// ─── Auth ─────────────────────────────────────────────────────────────────────
+let authMode = 'signin';
+function switchTab(mode) {
+  authMode = mode;
+  document.querySelectorAll('.auth-tab').forEach((t,i) => t.classList.toggle('active', (i===0&&mode==='signin')||(i===1&&mode==='signup')));
+  document.getElementById('authSubmitBtn').textContent = mode === 'signin' ? 'Sign in' : 'Create account';
+  document.getElementById('authError').style.display = 'none';
+  document.getElementById('authSuccess').style.display = 'none';
+}
+
+async function submitAuth() {
+  const email    = document.getElementById('authEmail').value.trim();
+  const password = document.getElementById('authPassword').value;
+  const errEl    = document.getElementById('authError');
+  const okEl     = document.getElementById('authSuccess');
+  const btn      = document.getElementById('authSubmitBtn');
+  errEl.style.display = 'none'; okEl.style.display = 'none';
+  if (!email || !password) { errEl.textContent = 'Please enter your email and password.'; errEl.style.display = 'block'; return; }
+  btn.disabled = true; btn.textContent = '…';
+
+  let result;
+  if (authMode === 'signin') {
+    result = await sb.auth.signInWithPassword({ email, password });
+  } else {
+    result = await sb.auth.signUp({ email, password });
+  }
+
+  btn.disabled = false; btn.textContent = authMode === 'signin' ? 'Sign in' : 'Create account';
+  if (result.error) {
+    errEl.textContent = result.error.message; errEl.style.display = 'block';
+  } else if (authMode === 'signup' && !result.data.session) {
+    okEl.textContent = 'Check your email to confirm your account, then sign in.'; okEl.style.display = 'block';
+  }
+  // session change triggers onAuthStateChange below
+}
+
+async function signOut() {
+  await sb.auth.signOut();
+}
+
+sb.auth.onAuthStateChange(async (event, session) => {
+  if (session) {
+    currentUser = session.user;
+    document.getElementById('userEmail').textContent = currentUser.email.split('@')[0];
+    document.getElementById('authScreen').classList.add('hidden');
+    document.getElementById('loadingScreen').classList.remove('hidden');
+    document.getElementById('app').classList.add('hidden');
+    await loadFromSupabase();
+    document.getElementById('loadingScreen').classList.add('hidden');
+    document.getElementById('app').classList.remove('hidden');
+    render();
+  } else {
+    currentUser = null;
+    data = { clients: [], cards: [] };
+    document.getElementById('app').classList.add('hidden');
+    document.getElementById('loadingScreen').classList.add('hidden');
+    document.getElementById('authScreen').classList.remove('hidden');
+  }
+});
+
+// ─── Supabase DB ──────────────────────────────────────────────────────────────
+async function loadFromSupabase() {
+  const uid = currentUser.id;
+  const [{ data: clients }, { data: cards }] = await Promise.all([
+    sb.from('clients').select('*').eq('user_id', uid).order('created_at'),
+    sb.from('cards').select('*').eq('user_id', uid).order('col_order')
+  ]);
+  data.clients = (clients || []).map(dbToClient);
+  data.cards   = (cards   || []).map(dbToCard);
+  setSyncState('synced');
+}
+
+function dbToClient(r) {
+  return { id: r.id, name: r.name, color: r.color };
+}
+function dbToCard(r) {
+  return { id: r.id, title: r.title, client: r.client_id || '', status: r.status, priority: r.priority, due: r.due || '', notes: r.notes || '', order: r.col_order };
+}
+
+async function upsertCard(card) {
+  setSyncState('syncing');
+  const { error } = await sb.from('cards').upsert({
+    id: card.id, user_id: currentUser.id,
+    title: card.title, client_id: card.client || null,
+    status: card.status, priority: card.priority,
+    due: card.due || null, notes: card.notes || '',
+    col_order: card.order
+  });
+  setSyncState(error ? 'error' : 'synced');
+  if (error) console.error('upsertCard', error);
+}
+
+async function deleteCardFromDB(id) {
+  setSyncState('syncing');
+  const { error } = await sb.from('cards').delete().eq('id', id);
+  setSyncState(error ? 'error' : 'synced');
+}
+
+async function upsertClient(client) {
+  setSyncState('syncing');
+  const { error } = await sb.from('clients').upsert({ id: client.id, user_id: currentUser.id, name: client.name, color: client.color });
+  setSyncState(error ? 'error' : 'synced');
+}
+
+async function deleteClientFromDB(id) {
+  setSyncState('syncing');
+  const { error } = await sb.from('clients').delete().eq('id', id);
+  setSyncState(error ? 'error' : 'synced');
+}
+
+async function saveOrdersForCol(col) {
+  const colCards = data.cards.filter(c => c.status === col);
+  setSyncState('syncing');
+  const { error } = await sb.from('cards').upsert(
+    colCards.map(c => ({ id: c.id, user_id: currentUser.id, title: c.title, client_id: c.client||null, status: c.status, priority: c.priority, due: c.due||null, notes: c.notes||'', col_order: c.order }))
+  );
+  setSyncState(error ? 'error' : 'synced');
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
-function uid() { return Math.random().toString(36).slice(2, 9); }
+function uid() { return crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).slice(2,18); }
 function escHtml(s) { return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
-
-function fmtDate(daysFromNow) {
-  const d = new Date(); d.setDate(d.getDate() + daysFromNow);
-  return d.toISOString().split('T')[0];
-}
-function today() { return new Date().toISOString().split('T')[0]; }
-function isOverdue(due) {
-  if (!due) return false;
-  return new Date(due + 'T00:00:00') < new Date(today());
-}
+function fmtDate(n) { const d=new Date(); d.setDate(d.getDate()+n); return d.toISOString().split('T')[0]; }
+function todayStr() { return new Date().toISOString().split('T')[0]; }
+function isOverdue(due) { return !!due && new Date(due+'T00:00:00') < new Date(todayStr()); }
 function isThisWeek(due) {
   if (!due) return false;
-  const t   = new Date(today());
-  const d   = new Date(due + 'T00:00:00');
-  const dow = t.getDay();
-  const mon = new Date(t); mon.setDate(t.getDate() - (dow === 0 ? 6 : dow - 1));
-  const sun = new Date(mon); sun.setDate(mon.getDate() + 6);
-  return d >= mon && d <= sun;
+  const t=new Date(todayStr()), d=new Date(due+'T00:00:00'), dow=t.getDay();
+  const mon=new Date(t); mon.setDate(t.getDate()-(dow===0?6:dow-1));
+  const sun=new Date(mon); sun.setDate(mon.getDate()+6);
+  return d>=mon && d<=sun;
 }
-function fmtDue(due) {
-  if (!due) return '';
-  return new Date(due + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-}
-function getClientById(id) { return data.clients.find(c => c.id === id); }
-function hexToRgb(hex) {
-  return { r: parseInt(hex.slice(1,3),16), g: parseInt(hex.slice(3,5),16), b: parseInt(hex.slice(5,7),16) };
-}
-function lighten(hex) { const {r,g,b} = hexToRgb(hex); return `rgba(${r},${g},${b},0.15)`; }
+function fmtDue(due) { return due ? new Date(due+'T00:00:00').toLocaleDateString('en-US',{month:'short',day:'numeric'}) : ''; }
+function getClientById(id) { return data.clients.find(c=>c.id===id); }
+function hexToRgb(hex) { return {r:parseInt(hex.slice(1,3),16),g:parseInt(hex.slice(3,5),16),b:parseInt(hex.slice(5,7),16)}; }
+function lighten(hex) { const {r,g,b}=hexToRgb(hex); return `rgba(${r},${g},${b},0.15)`; }
 
 // ─── Priority sort ────────────────────────────────────────────────────────────
 function sortColByPriority(col) {
-  const sorted = data.cards
-    .filter(c => c.status === col)
-    .sort((a, b) => {
-      const pa = PRANK[a.priority||'med'], pb = PRANK[b.priority||'med'];
-      return pa !== pb ? pa - pb : (a.order||0) - (b.order||0);
-    });
-  sorted.forEach((c, i) => { c.order = (i + 1) * 100; });
+  const sorted = data.cards.filter(c=>c.status===col)
+    .sort((a,b)=>{ const pa=PRANK[a.priority||'med'],pb=PRANK[b.priority||'med']; return pa!==pb?pa-pb:(a.order||0)-(b.order||0); });
+  sorted.forEach((c,i)=>{ c.order=(i+1)*100; });
 }
 
 // ─── Card HTML ────────────────────────────────────────────────────────────────
 function cardHTML(card) {
-  const client   = getClientById(card.client);
-  const bg       = client ? lighten(client.color) : 'transparent';
-  const fg       = client ? client.color : 'var(--text-dim)';
-  const overdue  = card.status !== 'done' && isOverdue(card.due);
-  return `
-  <div class="card${overdue ? ' overdue-card' : ''}" id="card-${card.id}"
-    draggable="true"
-    ondragstart="onDragStart(event,'${card.id}')"
-    ondragend="onDragEnd(event)"
-    onclick="handleCardClick(event,'${card.id}')">
+  const cl=getClientById(card.client), bg=cl?lighten(cl.color):'transparent', fg=cl?cl.color:'var(--text-dim)';
+  const ov=card.status!=='done'&&isOverdue(card.due);
+  return `<div class="card${ov?' overdue-card':''}" id="card-${card.id}" draggable="true"
+    ondragstart="onDragStart(event,'${card.id}')" ondragend="onDragEnd(event)" onclick="handleCardClick(event,'${card.id}')">
     <div class="card-actions">
       <button class="card-btn" onclick="event.stopPropagation();openEditCard('${card.id}')" title="Edit">✎</button>
       <button class="card-btn" onclick="event.stopPropagation();deleteCard('${card.id}')" title="Delete">✕</button>
     </div>
-    ${client ? `<div class="card-client-badge" style="background:${bg};color:${fg}">${escHtml(client.name)}</div>` : ''}
+    ${cl?`<div class="card-client-badge" style="background:${bg};color:${fg}">${escHtml(cl.name)}</div>`:''}
     <div class="card-title">${escHtml(card.title)}</div>
     <div class="card-meta">
-      ${card.due ? `<span class="card-due${overdue?' overdue':''}">⏱ ${fmtDue(card.due)}${overdue?' !':''}</span>` : '<span></span>'}
+      ${card.due?`<span class="card-due${ov?' overdue':''}">⏱ ${fmtDue(card.due)}${ov?' !':''}</span>`:'<span></span>'}
       <span class="card-priority priority-${card.priority||'med'}">${card.priority||'med'}</span>
     </div>
   </div>`;
@@ -696,344 +769,236 @@ function cardHTML(card) {
 
 // ─── Render ───────────────────────────────────────────────────────────────────
 function render() {
-  const fv = document.getElementById('filterSelect').value;
-
-  ['todo','progress','review','done'].forEach(col => {
-    let cards = data.cards.filter(c => c.status === col);
-    if (fv !== 'all') cards = cards.filter(c => c.client === fv);
-    if (col === 'todo') cards = cards.filter(c => !isThisWeek(c.due));
-    cards.sort((a, b) => (a.order||0) - (b.order||0));
-    const el = document.getElementById('col-' + col);
-    el.innerHTML = cards.length ? cards.map(cardHTML).join('') : `<div class="empty-col">No tasks here</div>`;
-    document.getElementById('count-' + col).textContent = cards.length;
+  const fv=document.getElementById('filterSelect').value;
+  ['todo','progress','review','done'].forEach(col=>{
+    let cards=data.cards.filter(c=>c.status===col);
+    if(fv!=='all') cards=cards.filter(c=>c.client===fv);
+    if(col==='todo') cards=cards.filter(c=>!isThisWeek(c.due));
+    cards.sort((a,b)=>(a.order||0)-(b.order||0));
+    const el=document.getElementById('col-'+col);
+    el.innerHTML=cards.length?cards.map(cardHTML).join(''):`<div class="empty-col">No tasks here</div>`;
+    document.getElementById('count-'+col).textContent=cards.length;
   });
 
-  // To Do This Week
-  let wk = data.cards.filter(c => c.status === 'todo' && isThisWeek(c.due));
-  if (fv !== 'all') wk = wk.filter(c => c.client === fv);
-  wk.sort((a, b) => {
-    const ao = isOverdue(a.due)?0:1, bo = isOverdue(b.due)?0:1;
-    if (ao !== bo) return ao - bo;
-    if (a.due !== b.due) return a.due < b.due ? -1 : 1;
-    return (PRANK[a.priority||'med']||0) - (PRANK[b.priority||'med']||0);
-  });
-  document.getElementById('col-week').innerHTML = wk.length ? wk.map(cardHTML).join('') : `<div class="empty-col">No tasks due this week 🎉</div>`;
-  document.getElementById('count-week').textContent = wk.length;
+  let wk=data.cards.filter(c=>c.status==='todo'&&isThisWeek(c.due));
+  if(fv!=='all') wk=wk.filter(c=>c.client===fv);
+  wk.sort((a,b)=>{const ao=isOverdue(a.due)?0:1,bo=isOverdue(b.due)?0:1;if(ao!==bo)return ao-bo;if(a.due!==b.due)return a.due<b.due?-1:1;return(PRANK[a.priority||'med']||0)-(PRANK[b.priority||'med']||0);});
+  document.getElementById('col-week').innerHTML=wk.length?wk.map(cardHTML).join(''):`<div class="empty-col">No tasks due this week 🎉</div>`;
+  document.getElementById('count-week').textContent=wk.length;
 
-  // Stats
-  const vis = fv === 'all' ? data.cards : data.cards.filter(c => c.client === fv);
-  document.getElementById('statTotal').textContent      = vis.length;
-  document.getElementById('statClients').textContent    = fv === 'all' ? data.clients.length : 1;
-  document.getElementById('statInProgress').textContent = vis.filter(c => c.status === 'progress').length;
-  document.getElementById('statOverdue').textContent    = vis.filter(c => c.status !== 'done' && isOverdue(c.due)).length;
+  const vis=fv==='all'?data.cards:data.cards.filter(c=>c.client===fv);
+  document.getElementById('statTotal').textContent=vis.length;
+  document.getElementById('statClients').textContent=fv==='all'?data.clients.length:1;
+  document.getElementById('statInProgress').textContent=vis.filter(c=>c.status==='progress').length;
+  document.getElementById('statOverdue').textContent=vis.filter(c=>c.status!=='done'&&isOverdue(c.due)).length;
 
-  // Client dropdown
-  const sel = document.getElementById('filterSelect'), cur = sel.value;
-  sel.innerHTML = '<option value="all">All Clients</option>' +
-    data.clients.map(c => `<option value="${c.id}"${c.id===cur?' selected':''}>${escHtml(c.name)}</option>`).join('');
-  if (cur !== 'all' && !data.clients.find(c => c.id === cur)) sel.value = 'all';
-
+  const sel=document.getElementById('filterSelect'),cur=sel.value;
+  sel.innerHTML='<option value="all">All Clients</option>'+
+    data.clients.map(c=>`<option value="${c.id}"${c.id===cur?' selected':''}>${escHtml(c.name)}</option>`).join('');
+  if(cur!=='all'&&!data.clients.find(c=>c.id===cur)) sel.value='all';
   renderClientList();
 }
 
 // ─── Collapsible Inbox ────────────────────────────────────────────────────────
 function toggleTodo() {
-  todoCollapsed = !todoCollapsed;
-  document.getElementById('col-todo-wrap').classList.toggle('collapsed', todoCollapsed);
-  document.getElementById('todo-collapse-icon').title = todoCollapsed ? 'Expand' : 'Collapse';
+  todoCollapsed=!todoCollapsed;
+  document.getElementById('col-todo-wrap').classList.toggle('collapsed',todoCollapsed);
+  document.getElementById('todo-collapse-icon').title=todoCollapsed?'Expand':'Collapse';
 }
 
 // ─── Clients ──────────────────────────────────────────────────────────────────
 function renderClientList() {
-  const el = document.getElementById('clientList');
-  if (!el) return;
-  el.innerHTML = data.clients.map(c =>
-    `<div class="client-chip" style="background:${lighten(c.color)};color:${c.color}">
-      ${escHtml(c.name)}<button onclick="removeClient('${c.id}')">×</button>
-    </div>`).join('');
+  const el=document.getElementById('clientList'); if(!el)return;
+  el.innerHTML=data.clients.map(c=>`<div class="client-chip" style="background:${lighten(c.color)};color:${c.color}">${escHtml(c.name)}<button onclick="removeClient('${c.id}')">×</button></div>`).join('');
 }
-function addClient() {
-  const name = document.getElementById('newClientName').value.trim();
-  const color = document.getElementById('newClientColor').value;
-  if (!name) return;
-  data.clients.push({ id: uid(), name, color });
-  document.getElementById('newClientName').value = '';
-  save(); render();
+async function addClient() {
+  const name=document.getElementById('newClientName').value.trim();
+  const color=document.getElementById('newClientColor').value;
+  if(!name)return;
+  const client={id:uid(),name,color};
+  data.clients.push(client);
+  document.getElementById('newClientName').value='';
+  render();
+  await upsertClient(client);
 }
-function removeClient(id) {
-  if (!confirm('Remove this client?')) return;
-  data.clients = data.clients.filter(c => c.id !== id);
-  data.cards.forEach(c => { if (c.client === id) c.client = ''; });
-  save(); render();
+async function removeClient(id) {
+  if(!confirm('Remove this client?'))return;
+  data.clients=data.clients.filter(c=>c.id!==id);
+  data.cards.forEach(c=>{if(c.client===id)c.client='';});
+  render();
+  await deleteClientFromDB(id);
 }
-function openClientManager() {
-  document.getElementById('clientModal').classList.remove('hidden');
-}
+function openClientManager() { document.getElementById('clientModal').classList.remove('hidden'); }
 
 // ─── Card Modal ───────────────────────────────────────────────────────────────
-function populateClientDropdown(selId, selectedId) {
-  document.getElementById(selId).innerHTML =
-    '<option value="">— No Client —</option>' +
-    data.clients.map(c => `<option value="${c.id}"${c.id===selectedId?' selected':''}>${escHtml(c.name)}</option>`).join('');
+function populateClientDropdown(selId,selectedId) {
+  document.getElementById(selId).innerHTML='<option value="">— No Client —</option>'+
+    data.clients.map(c=>`<option value="${c.id}"${c.id===selectedId?' selected':''}>${escHtml(c.name)}</option>`).join('');
 }
-
 function openAddCard(col) {
-  editingCardId = null;
-  document.getElementById('modalTitle').textContent    = 'Add Task';
-  document.getElementById('cardTitleInput').value      = '';
-  document.getElementById('cardStatusInput').value     = col || 'todo';
-  document.getElementById('cardPriorityInput').value   = 'med';
-  document.getElementById('cardDueInput').value        = '';
-  document.getElementById('cardNotesInput').value      = '';
-  populateClientDropdown('cardClientInput', '');
+  editingCardId=null;
+  document.getElementById('modalTitle').textContent='Add Task';
+  document.getElementById('cardTitleInput').value='';
+  document.getElementById('cardStatusInput').value=col||'todo';
+  document.getElementById('cardPriorityInput').value='med';
+  document.getElementById('cardDueInput').value='';
+  document.getElementById('cardNotesInput').value='';
+  populateClientDropdown('cardClientInput','');
   document.getElementById('cardModal').classList.remove('hidden');
-  setTimeout(() => document.getElementById('cardTitleInput').focus(), 50);
+  setTimeout(()=>document.getElementById('cardTitleInput').focus(),50);
 }
-
 function openEditCard(id) {
-  const card = data.cards.find(c => c.id === id);
-  if (!card) return;
-  editingCardId = id;
-  document.getElementById('modalTitle').textContent    = 'Edit Task';
-  document.getElementById('cardTitleInput').value      = card.title;
-  document.getElementById('cardStatusInput').value     = card.status;
-  document.getElementById('cardPriorityInput').value   = card.priority || 'med';
-  document.getElementById('cardDueInput').value        = card.due || '';
-  document.getElementById('cardNotesInput').value      = card.notes || '';
-  populateClientDropdown('cardClientInput', card.client || '');
+  const card=data.cards.find(c=>c.id===id); if(!card)return;
+  editingCardId=id;
+  document.getElementById('modalTitle').textContent='Edit Task';
+  document.getElementById('cardTitleInput').value=card.title;
+  document.getElementById('cardStatusInput').value=card.status;
+  document.getElementById('cardPriorityInput').value=card.priority||'med';
+  document.getElementById('cardDueInput').value=card.due||'';
+  document.getElementById('cardNotesInput').value=card.notes||'';
+  populateClientDropdown('cardClientInput',card.client||'');
   document.getElementById('cardModal').classList.remove('hidden');
 }
-
-function saveCard() {
-  const title = document.getElementById('cardTitleInput').value.trim();
-  if (!title) { document.getElementById('cardTitleInput').focus(); return; }
-  const card = {
-    id:       editingCardId || uid(),
-    title,
-    client:   document.getElementById('cardClientInput').value,
-    status:   document.getElementById('cardStatusInput').value,
-    priority: document.getElementById('cardPriorityInput').value,
-    due:      document.getElementById('cardDueInput').value,
-    notes:    document.getElementById('cardNotesInput').value,
+async function saveCard() {
+  const title=document.getElementById('cardTitleInput').value.trim();
+  if(!title){document.getElementById('cardTitleInput').focus();return;}
+  const card={
+    id:editingCardId||uid(), title,
+    client:document.getElementById('cardClientInput').value,
+    status:document.getElementById('cardStatusInput').value,
+    priority:document.getElementById('cardPriorityInput').value,
+    due:document.getElementById('cardDueInput').value,
+    notes:document.getElementById('cardNotesInput').value,
   };
-  if (editingCardId) {
-    const idx = data.cards.findIndex(c => c.id === editingCardId);
-    const prev = data.cards[idx].status;
-    card.order = data.cards[idx].order;
-    data.cards[idx] = card;
+  if(editingCardId){
+    const idx=data.cards.findIndex(c=>c.id===editingCardId);
+    const prev=data.cards[idx].status;
+    card.order=data.cards[idx].order;
+    data.cards[idx]=card;
     sortColByPriority(card.status);
-    if (prev !== card.status) sortColByPriority(prev);
+    if(prev!==card.status){sortColByPriority(prev);await saveOrdersForCol(prev);}
   } else {
-    const existing = data.cards.filter(c => c.status === card.status);
-    card.order = existing.length ? Math.min(...existing.map(c => c.order||0)) - 100 : 1000;
+    const ex=data.cards.filter(c=>c.status===card.status);
+    card.order=ex.length?Math.min(...ex.map(c=>c.order||0))-100:1000;
     data.cards.push(card);
     sortColByPriority(card.status);
   }
-  save(); render();
-  closeModal('cardModal');
-  toast(editingCardId ? 'Task updated' : 'Task added');
+  render(); closeModal('cardModal'); toast(editingCardId?'Task updated':'Task added');
+  await upsertCard(card);
+  await saveOrdersForCol(card.status);
 }
-
-function deleteCard(id) {
-  data.cards = data.cards.filter(c => c.id !== id);
-  save(); render();
-  toast('Task deleted');
+async function deleteCard(id) {
+  data.cards=data.cards.filter(c=>c.id!==id);
+  render(); toast('Task deleted');
+  await deleteCardFromDB(id);
 }
-function closeModal(id) { document.getElementById(id).classList.add('hidden'); }
+function closeModal(id){document.getElementById(id).classList.add('hidden');}
 
 // ─── Drag & Drop ──────────────────────────────────────────────────────────────
-let dropIndicator = null, dragOverCol = null, dragOverIndex = null, didDrag = false;
-
-function getDropIndex(colEl, y) {
-  const cards = [...colEl.querySelectorAll('.card:not(.dragging)')];
-  for (let i = 0; i < cards.length; i++) {
-    const r = cards[i].getBoundingClientRect();
-    if (y < r.top + r.height / 2) return i;
-  }
-  return cards.length;
-}
-function showDropIndicator(colEl, idx) {
-  removeDropIndicator();
-  dropIndicator = document.createElement('div');
-  dropIndicator.className = 'drop-indicator';
-  const cards = [...colEl.querySelectorAll('.card:not(.dragging)')];
-  if (idx >= cards.length) colEl.appendChild(dropIndicator);
-  else colEl.insertBefore(dropIndicator, cards[idx]);
-}
-function removeDropIndicator() { if (dropIndicator) { dropIndicator.remove(); dropIndicator = null; } }
-
-function onDragStart(e, id) {
-  dragCardId = id;
-  e.dataTransfer.effectAllowed = 'move';
-  e.dataTransfer.setData('text/plain', id);
-  setTimeout(() => { const el = document.getElementById('card-'+id); if (el) el.classList.add('dragging'); }, 0);
-}
-function onDragEnd() {
-  didDrag = true; setTimeout(() => { didDrag = false; }, 100);
-  document.querySelectorAll('.card.dragging').forEach(c => c.classList.remove('dragging'));
-  removeDropIndicator();
-  document.querySelectorAll('.col-body').forEach(c => c.classList.remove('drag-over'));
-  dragOverCol = null; dragOverIndex = null;
-}
-function onDragOver(e) {
-  e.preventDefault(); e.dataTransfer.dropEffect = 'move';
-  const col = e.currentTarget.id.replace('col-', '');
-  const idx = getDropIndex(e.currentTarget, e.clientY);
-  if (col !== dragOverCol || idx !== dragOverIndex) {
-    dragOverCol = col; dragOverIndex = idx;
-    document.querySelectorAll('.col-body').forEach(c => c.classList.remove('drag-over'));
-    e.currentTarget.classList.add('drag-over');
-    showDropIndicator(e.currentTarget, idx);
-  }
-}
-function onDragLeave(e) {
-  if (!e.currentTarget.contains(e.relatedTarget)) {
-    e.currentTarget.classList.remove('drag-over');
-    removeDropIndicator(); dragOverCol = null; dragOverIndex = null;
-  }
-}
-function onDrop(e, col) {
-  e.preventDefault(); removeDropIndicator();
-  e.currentTarget.classList.remove('drag-over');
-  if (!dragCardId) return;
-  const card = data.cards.find(c => c.id === dragCardId);
-  if (!card) { dragCardId = null; return; }
-
-  const fv = document.getElementById('filterSelect').value;
-  let peers = data.cards.filter(c => c.status === col && c.id !== dragCardId);
-  if (fv !== 'all') peers = peers.filter(c => c.client === fv);
-  peers.sort((a,b) => (a.order||0)-(b.order||0));
-
-  const di = dragOverIndex !== null ? dragOverIndex : peers.length;
+let dropIndicator=null,dragOverCol=null,dragOverIndex=null,didDrag=false;
+function getDropIndex(colEl,y){const cards=[...colEl.querySelectorAll('.card:not(.dragging)')];for(let i=0;i<cards.length;i++){const r=cards[i].getBoundingClientRect();if(y<r.top+r.height/2)return i;}return cards.length;}
+function showDropIndicator(colEl,idx){removeDropIndicator();dropIndicator=document.createElement('div');dropIndicator.className='drop-indicator';const cards=[...colEl.querySelectorAll('.card:not(.dragging)')];if(idx>=cards.length)colEl.appendChild(dropIndicator);else colEl.insertBefore(dropIndicator,cards[idx]);}
+function removeDropIndicator(){if(dropIndicator){dropIndicator.remove();dropIndicator=null;}}
+function onDragStart(e,id){dragCardId=id;e.dataTransfer.effectAllowed='move';e.dataTransfer.setData('text/plain',id);setTimeout(()=>{const el=document.getElementById('card-'+id);if(el)el.classList.add('dragging');},0);}
+function onDragEnd(){didDrag=true;setTimeout(()=>{didDrag=false;},100);document.querySelectorAll('.card.dragging').forEach(c=>c.classList.remove('dragging'));removeDropIndicator();document.querySelectorAll('.col-body').forEach(c=>c.classList.remove('drag-over'));dragOverCol=null;dragOverIndex=null;}
+function onDragOver(e){e.preventDefault();e.dataTransfer.dropEffect='move';const col=e.currentTarget.id.replace('col-','');const idx=getDropIndex(e.currentTarget,e.clientY);if(col!==dragOverCol||idx!==dragOverIndex){dragOverCol=col;dragOverIndex=idx;document.querySelectorAll('.col-body').forEach(c=>c.classList.remove('drag-over'));e.currentTarget.classList.add('drag-over');showDropIndicator(e.currentTarget,idx);}}
+function onDragLeave(e){if(!e.currentTarget.contains(e.relatedTarget)){e.currentTarget.classList.remove('drag-over');removeDropIndicator();dragOverCol=null;dragOverIndex=null;}}
+async function onDrop(e,col){
+  e.preventDefault();removeDropIndicator();e.currentTarget.classList.remove('drag-over');
+  if(!dragCardId)return;
+  const card=data.cards.find(c=>c.id===dragCardId);if(!card){dragCardId=null;return;}
+  const fv=document.getElementById('filterSelect').value;
+  let peers=data.cards.filter(c=>c.status===col&&c.id!==dragCardId);
+  if(fv!=='all')peers=peers.filter(c=>c.client===fv);
+  peers.sort((a,b)=>(a.order||0)-(b.order||0));
+  const di=dragOverIndex!==null?dragOverIndex:peers.length;
   let newOrder;
-  if      (!peers.length)      newOrder = 1000;
-  else if (di === 0)           newOrder = (peers[0].order||0) - 100;
-  else if (di >= peers.length) newOrder = (peers[peers.length-1].order||0) + 100;
-  else                         newOrder = ((peers[di-1].order||0) + (peers[di].order||0)) / 2;
-
-  const prev = card.status;
-  card.status = col; card.order = newOrder;
-  sortColByPriority(col);
-  if (prev !== col) sortColByPriority(prev);
-  save(); render();
-  dragCardId = null; dragOverCol = null; dragOverIndex = null;
+  if(!peers.length)newOrder=1000;
+  else if(di===0)newOrder=(peers[0].order||0)-100;
+  else if(di>=peers.length)newOrder=(peers[peers.length-1].order||0)+100;
+  else newOrder=((peers[di-1].order||0)+(peers[di].order||0))/2;
+  const prev=card.status;
+  card.status=col;card.order=newOrder;
+  sortColByPriority(col);if(prev!==col)sortColByPriority(prev);
+  render();dragCardId=null;dragOverCol=null;dragOverIndex=null;
+  await saveOrdersForCol(col);if(prev!==col)await saveOrdersForCol(prev);
 }
 
 // ─── Drawer ───────────────────────────────────────────────────────────────────
-let drawerCardId = null, drawerSaveTimer = null;
-
-function handleCardClick(e, id) { if (didDrag) { didDrag = false; return; } openDrawer(id); }
-
-function openDrawer(id) {
-  const card = data.cards.find(c => c.id === id);
-  if (!card) return;
-  drawerCardId = id;
-
-  const titleEl = document.getElementById('drawerTitle');
-  titleEl.value = card.title; autoResizeTextarea(titleEl);
-
-  document.getElementById('drawerStatus').value   = card.status;
-  document.getElementById('drawerPriority').value = card.priority || 'med';
-  document.getElementById('drawerDue').value      = card.due || '';
-  const notesEl = document.getElementById('drawerNotes');
-  notesEl.value = card.notes || ''; autoResizeTextarea(notesEl);
-
-  populateClientDropdown('drawerClientSelect', card.client || '');
-
-  const client = getClientById(card.client);
-  document.getElementById('drawerClientLabel').textContent = client ? client.name : 'No client';
-  document.getElementById('drawerColName').textContent     = COL_LABELS[card.status] || card.status;
-
-  const overdue = card.status !== 'done' && isOverdue(card.due);
-  const meta    = document.getElementById('drawerMetaInfo');
-  meta.textContent = card.due ? (overdue ? '⚠ Overdue · ' : '') + 'Due ' + fmtDue(card.due) : '';
-  meta.style.color = overdue ? '#E07878' : '';
-
+let drawerCardId=null,drawerSaveTimer=null;
+function handleCardClick(e,id){if(didDrag){didDrag=false;return;}openDrawer(id);}
+function openDrawer(id){
+  const card=data.cards.find(c=>c.id===id);if(!card)return;
+  drawerCardId=id;
+  const titleEl=document.getElementById('drawerTitle');
+  titleEl.value=card.title;autoResizeTextarea(titleEl);
+  document.getElementById('drawerStatus').value=card.status;
+  document.getElementById('drawerPriority').value=card.priority||'med';
+  document.getElementById('drawerDue').value=card.due||'';
+  const notesEl=document.getElementById('drawerNotes');notesEl.value=card.notes||'';autoResizeTextarea(notesEl);
+  populateClientDropdown('drawerClientSelect',card.client||'');
+  const cl=getClientById(card.client);
+  document.getElementById('drawerClientLabel').textContent=cl?cl.name:'No client';
+  document.getElementById('drawerColName').textContent=COL_LABELS[card.status]||card.status;
+  const ov=card.status!=='done'&&isOverdue(card.due);
+  const meta=document.getElementById('drawerMetaInfo');
+  meta.textContent=card.due?(ov?'⚠ Overdue · ':'')+' Due '+fmtDue(card.due):'';
+  meta.style.color=ov?'#E07878':'';
   document.getElementById('drawerBackdrop').classList.remove('hidden');
   document.getElementById('detailDrawer').classList.remove('hidden');
-  document.body.style.overflow = 'hidden';
+  document.body.style.overflow='hidden';
   titleEl.focus();
 }
-
-function closeDrawer() {
-  if (drawerSaveTimer) { clearTimeout(drawerSaveTimer); drawerSaveTimer = null; flushDrawerSave(); }
+function closeDrawer(){
+  if(drawerSaveTimer){clearTimeout(drawerSaveTimer);drawerSaveTimer=null;flushDrawerSave();}
   document.getElementById('drawerBackdrop').classList.add('hidden');
   document.getElementById('detailDrawer').classList.add('hidden');
-  document.body.style.overflow = '';
-  drawerCardId = null;
+  document.body.style.overflow='';
+  drawerCardId=null;
 }
-
-function drawerAutoSave() {
-  if (drawerSaveTimer) clearTimeout(drawerSaveTimer);
-  drawerSaveTimer = setTimeout(flushDrawerSave, 600);
+function drawerAutoSave(){if(drawerSaveTimer)clearTimeout(drawerSaveTimer);drawerSaveTimer=setTimeout(flushDrawerSave,600);}
+async function flushDrawerSave(){
+  if(!drawerCardId)return;
+  const card=data.cards.find(c=>c.id===drawerCardId);if(!card)return;
+  const drawer=document.getElementById('detailDrawer');if(!drawer||drawer.classList.contains('hidden'))return;
+  const prev=card.status;
+  const ns=document.getElementById('drawerStatus').value;
+  card.title=document.getElementById('drawerTitle').value.trim()||card.title;
+  card.status=ns;card.priority=document.getElementById('drawerPriority').value;
+  card.client=document.getElementById('drawerClientSelect').value;
+  card.due=document.getElementById('drawerDue').value;
+  card.notes=document.getElementById('drawerNotes').value;
+  sortColByPriority(ns);if(prev!==ns)sortColByPriority(prev);
+  const cl=getClientById(card.client);
+  document.getElementById('drawerClientLabel').textContent=cl?cl.name:'No client';
+  document.getElementById('drawerColName').textContent=COL_LABELS[ns]||ns;
+  const ov=card.status!=='done'&&isOverdue(card.due);
+  const meta=document.getElementById('drawerMetaInfo');
+  meta.textContent=card.due?(ov?'⚠ Overdue · ':'')+' Due '+fmtDue(card.due):'';
+  meta.style.color=ov?'#E07878':'';
+  render();
+  await upsertCard(card);
+  await saveOrdersForCol(ns);
+  if(prev!==ns)await saveOrdersForCol(prev);
 }
-
-function flushDrawerSave() {
-  if (!drawerCardId) return;
-  const card = data.cards.find(c => c.id === drawerCardId);
-  if (!card) return;
-
-  const prev      = card.status;
-  const newStatus = document.getElementById('drawerStatus').value;
-  card.title    = document.getElementById('drawerTitle').value.trim() || card.title;
-  card.status   = newStatus;
-  card.priority = document.getElementById('drawerPriority').value;
-  card.client   = document.getElementById('drawerClientSelect').value;
-  card.due      = document.getElementById('drawerDue').value;
-  card.notes    = document.getElementById('drawerNotes').value;
-
-  sortColByPriority(newStatus);
-  if (prev !== newStatus) sortColByPriority(prev);
-
-  const client = getClientById(card.client);
-  document.getElementById('drawerClientLabel').textContent = client ? client.name : 'No client';
-  document.getElementById('drawerColName').textContent     = COL_LABELS[newStatus] || newStatus;
-
-  const overdue = card.status !== 'done' && isOverdue(card.due);
-  const meta    = document.getElementById('drawerMetaInfo');
-  meta.textContent = card.due ? (overdue ? '⚠ Overdue · ' : '') + 'Due ' + fmtDue(card.due) : '';
-  meta.style.color = overdue ? '#E07878' : '';
-
-  save(); render();
+function drawerOpenEdit(){const id=drawerCardId;closeDrawer();openEditCard(id);}
+async function drawerDelete(){
+  if(!drawerCardId)return;
+  const card=data.cards.find(c=>c.id===drawerCardId);
+  if(!card||!confirm(`Delete "${card.title}"?`))return;
+  const id=drawerCardId;closeDrawer();
+  await deleteCard(id);
 }
-
-function drawerOpenEdit() {
-  const id = drawerCardId; closeDrawer(); openEditCard(id);
-}
-function drawerDelete() {
-  if (!drawerCardId) return;
-  const card = data.cards.find(c => c.id === drawerCardId);
-  if (!card || !confirm(`Delete "${card.title}"?`)) return;
-  const id = drawerCardId; closeDrawer(); deleteCard(id);
-}
-function autoResizeTextarea(el) { el.style.height = 'auto'; el.style.height = el.scrollHeight + 'px'; }
+function autoResizeTextarea(el){el.style.height='auto';el.style.height=el.scrollHeight+'px';}
 
 // ─── Filter / Toast / Keys ────────────────────────────────────────────────────
-function filterByClient() { render(); }
-
-function toast(msg) {
-  const el = document.createElement('div');
-  el.className = 'toast'; el.textContent = msg;
-  document.body.appendChild(el);
-  setTimeout(() => el.remove(), 2200);
-}
-
-document.addEventListener('keydown', e => {
-  if (e.key === 'Escape') {
-    if (!document.getElementById('detailDrawer').classList.contains('hidden')) { closeDrawer(); return; }
-    closeModal('cardModal'); closeModal('clientModal');
-  }
-  if (e.key === 'Enter' && !document.getElementById('cardModal').classList.contains('hidden')) {
-    if (document.activeElement.tagName !== 'TEXTAREA') saveCard();
-  }
+function filterByClient(){render();}
+function toast(msg){const el=document.createElement('div');el.className='toast';el.textContent=msg;document.body.appendChild(el);setTimeout(()=>el.remove(),2200);}
+document.addEventListener('keydown',e=>{
+  if(e.key==='Escape'){if(!document.getElementById('detailDrawer').classList.contains('hidden')){closeDrawer();return;}closeModal('cardModal');closeModal('clientModal');}
+  if(e.key==='Enter'&&!document.getElementById('cardModal').classList.contains('hidden')){if(document.activeElement.tagName!=='TEXTAREA')saveCard();}
 });
-document.querySelectorAll('.modal-backdrop').forEach(b => {
-  b.addEventListener('click', e => { if (e.target === b) b.classList.add('hidden'); });
-});
-
-// ─── Init ─────────────────────────────────────────────────────────────────────
-load();
-render();
+document.querySelectorAll('.modal-backdrop').forEach(b=>{b.addEventListener('click',e=>{if(e.target===b)b.classList.add('hidden');});});
 </script>
 </body>
 </html>

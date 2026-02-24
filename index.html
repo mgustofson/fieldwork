@@ -1,0 +1,1039 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Fieldwork — Client Kanban</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #0F0F10;
+    --surface: #16161A;
+    --surface2: #1C1C21;
+    --surface3: #222228;
+    --border: #2A2A30;
+    --border-subtle: #222228;
+    --text: #E2E2E6;
+    --text-muted: #6B6B78;
+    --text-dim: #4A4A55;
+    --accent: #5E6AD2;
+    --accent-hover: #6B78E0;
+    --todo-dot: #5E6AD2;
+    --progress-dot: #26B5A0;
+    --review-dot: #E8A838;
+    --done-dot: #4CAF7D;
+  }
+
+  body {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    overflow-x: hidden;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  header {
+    padding: 0 20px;
+    height: 48px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    position: sticky;
+    top: 0;
+    z-index: 100;
+  }
+
+  .logo {
+    font-size: 13px; font-weight: 600; letter-spacing: -0.2px;
+    color: var(--text); display: flex; align-items: center; gap: 8px;
+  }
+  .logo-icon {
+    width: 20px; height: 20px; background: var(--accent);
+    border-radius: 5px; display: flex; align-items: center; justify-content: center;
+    font-size: 10px; font-weight: 700; color: white;
+  }
+
+  .header-controls { display: flex; align-items: center; gap: 6px; }
+
+  .client-filter {
+    display: flex; align-items: center; gap: 6px;
+    background: transparent; border: 1px solid var(--border);
+    border-radius: 6px; padding: 5px 10px;
+    font-size: 12px; font-family: inherit;
+    color: var(--text-muted); cursor: pointer; transition: all 0.12s;
+  }
+  .client-filter:hover { border-color: #3A3A42; color: var(--text); background: var(--surface2); }
+  select.client-filter { appearance: none; min-width: 140px; }
+
+  .btn-primary {
+    background: var(--accent); color: white; border: none;
+    border-radius: 6px; padding: 5px 12px;
+    font-size: 12px; font-weight: 500; font-family: inherit;
+    cursor: pointer; transition: all 0.12s;
+    display: flex; align-items: center; gap: 5px;
+  }
+  .btn-primary:hover { background: var(--accent-hover); }
+
+  .stats-bar {
+    padding: 0 20px; height: 36px;
+    display: flex; align-items: center; gap: 20px;
+    border-bottom: 1px solid var(--border-subtle);
+    background: var(--surface);
+  }
+  .stat { display: flex; align-items: center; gap: 6px; font-size: 11.5px; color: var(--text-muted); }
+  .stat strong { color: var(--text); font-weight: 500; }
+  .stat-divider { width: 1px; height: 12px; background: var(--border); }
+
+  .board {
+    display: flex; padding: 20px; overflow-x: auto;
+    flex: 1; align-items: flex-start; gap: 12px;
+  }
+
+  .column {
+    flex: 0 0 270px; display: flex; flex-direction: column;
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 8px; overflow: hidden;
+  }
+
+  .col-header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 10px 12px; border-bottom: 1px solid var(--border-subtle);
+  }
+  .col-title {
+    display: flex; align-items: center; gap: 7px;
+    font-size: 12px; font-weight: 500; color: var(--text-muted);
+  }
+  .col-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
+  .col-count { color: var(--text-dim); font-size: 11px; font-weight: 400; }
+  .col-add {
+    background: none; border: none; cursor: pointer;
+    color: var(--text-dim); font-size: 16px; line-height: 1;
+    transition: color 0.12s; padding: 0 2px;
+  }
+  .col-add:hover { color: var(--text-muted); }
+
+  .col-body {
+    padding: 8px; display: flex; flex-direction: column;
+    gap: 4px; min-height: 80px; transition: background 0.12s;
+  }
+  .col-body.drag-over {
+    background: rgba(94,106,210,0.05) !important;
+    outline: 1px solid rgba(94,106,210,0.3);
+    outline-offset: -1px; border-radius: 4px;
+  }
+
+  [data-col="todo"] .col-dot     { background: var(--todo-dot); }
+  [data-col="progress"] .col-dot { background: var(--progress-dot); }
+  [data-col="review"] .col-dot   { background: var(--review-dot); }
+  [data-col="done"] .col-dot     { background: var(--done-dot); }
+  [data-col="week"] .col-dot     { background: #E05252; }
+
+  .col-readonly-badge {
+    font-size: 10px; font-weight: 500; color: var(--text-dim);
+    background: var(--surface3); border: 1px solid var(--border);
+    border-radius: 4px; padding: 1px 6px;
+  }
+
+  #col-week .card { border-left: 2px solid rgba(224,82,82,0.35); }
+  #col-week .card.overdue-card { border-left-color: #E05252; }
+
+  /* Cards */
+  .card {
+    background: var(--surface2); border: 1px solid var(--border-subtle);
+    border-radius: 6px; padding: 10px 11px; cursor: grab;
+    transition: border-color 0.12s, background 0.12s;
+    position: relative; animation: cardIn 0.15s ease;
+  }
+  @keyframes cardIn { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: translateY(0); } }
+  .card:hover { border-color: #35353D; background: var(--surface3); }
+  .card.dragging { opacity: 0.35; cursor: grabbing; }
+
+  .card-client-badge {
+    display: inline-flex; align-items: center;
+    font-size: 10px; font-weight: 500; padding: 1px 6px;
+    border-radius: 3px; margin-bottom: 6px;
+  }
+  .card-title {
+    font-size: 12.5px; font-weight: 400; line-height: 1.45;
+    margin-bottom: 8px; color: var(--text); letter-spacing: -0.1px;
+  }
+  .card-meta { display: flex; align-items: center; justify-content: space-between; gap: 6px; }
+  .card-due { font-size: 10.5px; color: var(--text-dim); display: flex; align-items: center; gap: 3px; }
+  .card-due.overdue { color: #E05252; }
+  .card-priority { font-size: 10px; font-weight: 500; padding: 1px 5px; border-radius: 3px; }
+  .priority-high { background: rgba(224,82,82,0.15); color: #E07878; }
+  .priority-med  { background: rgba(232,168,56,0.12); color: #C89A44; }
+  .priority-low  { background: rgba(76,175,125,0.12); color: #4CAF7D; }
+
+  .card-actions { position: absolute; top: 7px; right: 8px; display: none; gap: 3px; }
+  .card:hover .card-actions { display: flex; }
+  .card-btn {
+    background: var(--surface3); border: 1px solid var(--border);
+    border-radius: 4px; width: 20px; height: 20px; cursor: pointer;
+    font-size: 10px; display: flex; align-items: center; justify-content: center;
+    transition: all 0.1s; color: var(--text-muted);
+  }
+  .card-btn:hover { background: var(--accent); color: white; border-color: var(--accent); }
+
+  /* Collapsible Inbox */
+  .column-collapsible { transition: flex-basis 0.25s cubic-bezier(0.4,0,0.2,1), min-width 0.25s cubic-bezier(0.4,0,0.2,1); }
+  .column-collapsible.collapsed { flex-basis: 38px !important; min-width: 38px !important; max-width: 38px; }
+  .column-collapsible.collapsed .col-header {
+    flex-direction: column; align-items: center; justify-content: flex-start;
+    padding: 12px 0 8px; gap: 8px; height: auto; cursor: pointer;
+  }
+  .column-collapsible.collapsed .col-title {
+    writing-mode: vertical-rl; transform: rotate(180deg);
+    font-size: 11px; gap: 6px; flex-direction: row-reverse;
+  }
+  .column-collapsible.collapsed .col-count { font-size: 10px; }
+  .col-body-collapsible { transition: opacity 0.2s ease; }
+  .column-collapsible.collapsed .col-body-collapsible { display: none; }
+  .column-collapsible.collapsed .col-collapse-btn { transform: rotate(90deg); }
+  .col-collapse-btn {
+    transition: transform 0.2s ease; display: flex; align-items: center; justify-content: center;
+    color: var(--text-dim); background: none; border: none; cursor: pointer; padding: 2px; border-radius: 3px;
+  }
+  .col-collapse-btn:hover { color: var(--text-muted); background: var(--surface3); }
+  .column-collapsible.collapsed .col-header > div:last-child { flex-direction: column; gap: 4px; align-items: center; }
+
+  /* Modal */
+  .modal-backdrop {
+    position: fixed; inset: 0; background: rgba(0,0,0,0.6);
+    z-index: 1000; display: flex; align-items: center; justify-content: center;
+    backdrop-filter: blur(4px); animation: fadeIn 0.12s;
+  }
+  @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+
+  .modal {
+    background: var(--surface2); border: 1px solid var(--border);
+    border-radius: 10px; width: 420px; max-width: calc(100vw - 32px);
+    padding: 24px; animation: slideUp 0.15s ease;
+    box-shadow: 0 24px 80px rgba(0,0,0,0.5);
+  }
+  @keyframes slideUp { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+  .modal h2 { font-size: 14px; font-weight: 600; margin-bottom: 18px; letter-spacing: -0.2px; }
+  .form-group { margin-bottom: 12px; }
+  label { display: block; font-size: 11px; font-weight: 500; letter-spacing: 0.02em; color: var(--text-muted); margin-bottom: 4px; }
+  input, select, textarea {
+    width: 100%; background: var(--surface); border: 1px solid var(--border);
+    border-radius: 6px; padding: 7px 10px; font-size: 13px;
+    font-family: inherit; color: var(--text); outline: none; transition: border-color 0.12s;
+  }
+  input:focus, select:focus, textarea:focus { border-color: var(--accent); }
+  select option { background: var(--surface2); }
+  textarea { resize: vertical; min-height: 64px; }
+  .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .modal-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 18px; }
+  .btn-ghost {
+    background: none; border: 1px solid var(--border); border-radius: 6px;
+    padding: 6px 14px; font-size: 12px; font-weight: 500; font-family: inherit;
+    cursor: pointer; color: var(--text-muted); transition: all 0.12s;
+  }
+  .btn-ghost:hover { border-color: #3A3A42; color: var(--text); background: var(--surface3); }
+
+  .client-chip {
+    display: inline-flex; align-items: center; gap: 5px;
+    padding: 3px 8px; border-radius: 4px; font-size: 11px; font-weight: 500; margin: 2px;
+  }
+  .client-chip button { background: none; border: none; cursor: pointer; font-size: 13px; line-height: 1; opacity: 0.4; padding: 0; width: auto; color: inherit; }
+  .client-chip button:hover { opacity: 1; }
+
+  .empty-col { text-align: center; padding: 24px 16px; color: var(--text-dim); font-size: 11.5px; }
+
+  .toast {
+    position: fixed; bottom: 20px; right: 20px;
+    background: var(--surface3); border: 1px solid var(--border);
+    color: var(--text); padding: 8px 14px; border-radius: 6px;
+    font-size: 12px; z-index: 9999; animation: toastIn 0.15s ease;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.3);
+  }
+  @keyframes toastIn { from { opacity: 0; transform: translateY(6px); } }
+
+  .hidden { display: none !important; }
+
+  .drop-indicator {
+    height: 2px; background: var(--accent); border-radius: 2px;
+    margin: 2px 0; position: relative; pointer-events: none;
+  }
+  .drop-indicator::before {
+    content: ''; position: absolute; left: -3px; top: -3px;
+    width: 8px; height: 8px; border-radius: 50%; background: var(--accent);
+  }
+
+  /* Detail Drawer */
+  .drawer-backdrop {
+    position: fixed; inset: 0; background: rgba(0,0,0,0.45);
+    z-index: 200; backdrop-filter: blur(2px); animation: fadeIn 0.15s ease;
+  }
+  .drawer {
+    position: fixed; top: 0; right: 0; bottom: 0;
+    width: 420px; max-width: 100vw; background: var(--surface);
+    border-left: 1px solid var(--border); z-index: 201;
+    display: flex; flex-direction: column;
+    animation: drawerIn 0.2s cubic-bezier(0.16,1,0.3,1);
+    box-shadow: -20px 0 60px rgba(0,0,0,0.4);
+  }
+  @keyframes drawerIn { from { transform: translateX(100%); opacity: 0.5; } to { transform: translateX(0); opacity: 1; } }
+
+  .drawer-header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 14px 16px 12px; border-bottom: 1px solid var(--border-subtle);
+    gap: 10px; flex-shrink: 0;
+  }
+  .drawer-breadcrumb { display: flex; align-items: center; gap: 6px; font-size: 11px; color: var(--text-dim); }
+  .drawer-header-actions { display: flex; align-items: center; gap: 4px; }
+  .drawer-icon-btn {
+    background: none; border: 1px solid transparent; border-radius: 5px;
+    width: 26px; height: 26px; display: flex; align-items: center; justify-content: center;
+    cursor: pointer; color: var(--text-muted); font-size: 13px; transition: all 0.1s;
+  }
+  .drawer-icon-btn:hover { background: var(--surface3); border-color: var(--border); color: var(--text); }
+
+  .drawer-body { flex: 1; overflow-y: auto; padding: 20px 20px 0; }
+  .drawer-body::-webkit-scrollbar { width: 4px; }
+  .drawer-body::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+
+  .drawer-title-input {
+    width: 100%; background: none; border: none; font-family: inherit;
+    font-size: 18px; font-weight: 600; color: var(--text); letter-spacing: -0.4px;
+    line-height: 1.3; outline: none; padding: 0; margin-bottom: 16px;
+    resize: none; overflow: hidden;
+  }
+  .drawer-title-input::placeholder { color: var(--text-dim); }
+
+  .drawer-props { display: flex; flex-direction: column; gap: 2px; margin-bottom: 20px; }
+  .drawer-prop { display: flex; align-items: center; border-radius: 5px; padding: 5px 4px; transition: background 0.1s; }
+  .drawer-prop:hover { background: var(--surface2); }
+  .drawer-prop-label { width: 110px; flex-shrink: 0; font-size: 12px; color: var(--text-dim); display: flex; align-items: center; gap: 6px; }
+  .drawer-prop-value { flex: 1; font-size: 12px; color: var(--text-muted); }
+  .drawer-prop select, .drawer-prop input[type="date"] {
+    background: none; border: none; font-family: inherit; font-size: 12px;
+    color: var(--text-muted); outline: none; padding: 0; cursor: pointer; width: 100%;
+  }
+  .drawer-prop select:hover, .drawer-prop input[type="date"]:hover { color: var(--text); }
+  .drawer-prop select option { background: var(--surface2); color: var(--text); }
+
+  .drawer-divider { height: 1px; background: var(--border-subtle); margin: 4px 0 16px; }
+  .drawer-section-label { font-size: 11px; font-weight: 500; color: var(--text-dim); letter-spacing: 0.05em; text-transform: uppercase; margin-bottom: 8px; }
+  .drawer-notes-input {
+    width: 100%; background: none; border: none; font-family: inherit;
+    font-size: 13px; color: var(--text-muted); outline: none; resize: none;
+    min-height: 100px; line-height: 1.6; padding: 0;
+  }
+  .drawer-notes-input::placeholder { color: var(--text-dim); }
+  .drawer-notes-input:focus { color: var(--text); }
+
+  .drawer-footer {
+    padding: 12px 20px 16px; border-top: 1px solid var(--border-subtle);
+    display: flex; align-items: center; justify-content: space-between; flex-shrink: 0;
+  }
+  .drawer-meta-info { font-size: 11px; color: var(--text-dim); }
+  .drawer-delete-btn {
+    background: none; border: 1px solid transparent; border-radius: 5px;
+    padding: 4px 10px; font-size: 11.5px; font-family: inherit;
+    color: var(--text-dim); cursor: pointer; transition: all 0.12s;
+    display: flex; align-items: center; gap: 5px;
+  }
+  .drawer-delete-btn:hover { background: rgba(224,82,82,0.1); border-color: rgba(224,82,82,0.3); color: #E07878; }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo"><div class="logo-icon">FW</div> Fieldwork</div>
+  <div class="header-controls">
+    <select class="client-filter" id="filterSelect" onchange="filterByClient()">
+      <option value="all">All Clients</option>
+    </select>
+    <button class="client-filter" onclick="openClientManager()">⊕ Clients</button>
+    <button class="btn-primary" onclick="openAddCard()">+ Add Task</button>
+  </div>
+</header>
+
+<div class="stats-bar">
+  <div class="stat"><strong id="statTotal">0</strong>&nbsp;Tasks</div>
+  <div class="stat-divider"></div>
+  <div class="stat"><strong id="statClients">0</strong>&nbsp;Clients</div>
+  <div class="stat-divider"></div>
+  <div class="stat"><strong id="statInProgress">0</strong>&nbsp;In Progress</div>
+  <div class="stat-divider"></div>
+  <div class="stat"><strong id="statOverdue">0</strong>&nbsp;Overdue</div>
+</div>
+
+<div class="board">
+
+  <!-- Inbox (collapsible) -->
+  <div class="column column-collapsible" data-col="todo" id="col-todo-wrap">
+    <div class="col-header" onclick="toggleTodo()" style="cursor:pointer;">
+      <div class="col-title"><span class="col-dot"></span> Inbox</div>
+      <div style="display:flex;align-items:center;gap:8px;" onclick="event.stopPropagation()">
+        <span class="col-count" id="count-todo">0</span>
+        <button class="col-add" onclick="openAddCard('todo')" title="Add task">+</button>
+        <button class="col-collapse-btn" id="todo-collapse-icon" onclick="toggleTodo()" title="Collapse">
+          <svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M2 4l3-3 3 3M2 7l3 3 3-3"/></svg>
+        </button>
+      </div>
+    </div>
+    <div class="col-body col-body-collapsible" id="col-todo" ondragover="onDragOver(event)" ondrop="onDrop(event,'todo')" ondragleave="onDragLeave(event)"></div>
+  </div>
+
+  <!-- To Do This Week -->
+  <div class="column" data-col="week">
+    <div class="col-header">
+      <div class="col-title"><span class="col-dot"></span> To Do This Week</div>
+      <div style="display:flex;align-items:center;gap:8px;">
+        <span class="col-count" id="count-week">0</span>
+        <span class="col-readonly-badge">auto</span>
+      </div>
+    </div>
+    <div class="col-body" id="col-week" ondragover="onDragOver(event)" ondrop="onDrop(event,'todo')" ondragleave="onDragLeave(event)"></div>
+  </div>
+
+  <!-- In Progress -->
+  <div class="column" data-col="progress">
+    <div class="col-header">
+      <div class="col-title"><span class="col-dot"></span> In Progress</div>
+      <div style="display:flex;align-items:center;gap:8px;">
+        <span class="col-count" id="count-progress">0</span>
+        <button class="col-add" onclick="openAddCard('progress')" title="Add task">+</button>
+      </div>
+    </div>
+    <div class="col-body" id="col-progress" ondragover="onDragOver(event)" ondrop="onDrop(event,'progress')" ondragleave="onDragLeave(event)"></div>
+  </div>
+
+  <!-- Review -->
+  <div class="column" data-col="review">
+    <div class="col-header">
+      <div class="col-title"><span class="col-dot"></span> Review</div>
+      <div style="display:flex;align-items:center;gap:8px;">
+        <span class="col-count" id="count-review">0</span>
+        <button class="col-add" onclick="openAddCard('review')" title="Add task">+</button>
+      </div>
+    </div>
+    <div class="col-body" id="col-review" ondragover="onDragOver(event)" ondrop="onDrop(event,'review')" ondragleave="onDragLeave(event)"></div>
+  </div>
+
+  <!-- Done -->
+  <div class="column" data-col="done">
+    <div class="col-header">
+      <div class="col-title"><span class="col-dot"></span> Done</div>
+      <div style="display:flex;align-items:center;gap:8px;">
+        <span class="col-count" id="count-done">0</span>
+        <button class="col-add" onclick="openAddCard('done')" title="Add task">+</button>
+      </div>
+    </div>
+    <div class="col-body" id="col-done" ondragover="onDragOver(event)" ondrop="onDrop(event,'done')" ondragleave="onDragLeave(event)"></div>
+  </div>
+</div>
+
+<!-- Task Modal -->
+<div class="modal-backdrop hidden" id="cardModal">
+  <div class="modal">
+    <h2 id="modalTitle">Add Task</h2>
+    <div class="form-group">
+      <label>Task Title</label>
+      <input type="text" id="cardTitleInput" placeholder="e.g. Redesign homepage hero section" />
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label>Client</label>
+        <select id="cardClientInput"></select>
+      </div>
+      <div class="form-group">
+        <label>Status</label>
+        <select id="cardStatusInput">
+          <option value="todo">Inbox</option>
+          <option value="progress">In Progress</option>
+          <option value="review">Review</option>
+          <option value="done">Done</option>
+        </select>
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label>Priority</label>
+        <select id="cardPriorityInput">
+          <option value="med">Medium</option>
+          <option value="high">High</option>
+          <option value="low">Low</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Due Date</label>
+        <input type="date" id="cardDueInput" />
+      </div>
+    </div>
+    <div class="form-group">
+      <label>Notes</label>
+      <textarea id="cardNotesInput" placeholder="Any additional context..."></textarea>
+    </div>
+    <div class="modal-actions">
+      <button class="btn-ghost" onclick="closeModal('cardModal')">Cancel</button>
+      <button class="btn-primary" onclick="saveCard()">Save Task</button>
+    </div>
+  </div>
+</div>
+
+<!-- Client Manager -->
+<div class="modal-backdrop hidden" id="clientModal">
+  <div class="modal">
+    <h2>Manage Clients</h2>
+    <div class="form-row">
+      <div class="form-group">
+        <label>Client Name</label>
+        <input type="text" id="newClientName" placeholder="e.g. Acme Corp" />
+      </div>
+      <div class="form-group">
+        <label>Color</label>
+        <input type="color" id="newClientColor" value="#5E6AD2" style="height:38px;padding:4px;" />
+      </div>
+    </div>
+    <button class="btn-primary" onclick="addClient()" style="margin-bottom:16px;">Add Client</button>
+    <div id="clientList" style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:8px;"></div>
+    <div class="modal-actions">
+      <button class="btn-primary" onclick="closeModal('clientModal')">Done</button>
+    </div>
+  </div>
+</div>
+
+<!-- Detail Drawer -->
+<div class="drawer-backdrop hidden" id="drawerBackdrop" onclick="closeDrawer()"></div>
+<div class="drawer hidden" id="detailDrawer">
+  <div class="drawer-header">
+    <div class="drawer-breadcrumb">
+      <span id="drawerClientLabel">—</span>
+      <span>›</span>
+      <span id="drawerColName">—</span>
+    </div>
+    <div class="drawer-header-actions">
+      <button class="drawer-icon-btn" onclick="drawerOpenEdit()" title="Edit in form">
+        <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M11.5 2.5l2 2-9 9H2.5v-2l9-9z"/></svg>
+      </button>
+      <button class="drawer-icon-btn" onclick="closeDrawer()" title="Close (Esc)">
+        <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M2 2l12 12M14 2L2 14"/></svg>
+      </button>
+    </div>
+  </div>
+  <div class="drawer-body">
+    <textarea class="drawer-title-input" id="drawerTitle" rows="1" placeholder="Task title"
+      oninput="autoResizeTextarea(this); drawerAutoSave()"></textarea>
+    <div class="drawer-props">
+      <div class="drawer-prop">
+        <div class="drawer-prop-label">
+          <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="8" cy="8" r="6"/><path d="M8 5v3l2 2"/></svg>
+          Status
+        </div>
+        <div class="drawer-prop-value">
+          <select id="drawerStatus" onchange="drawerAutoSave()">
+            <option value="todo">Inbox</option>
+            <option value="progress">In Progress</option>
+            <option value="review">Review</option>
+            <option value="done">Done</option>
+          </select>
+        </div>
+      </div>
+      <div class="drawer-prop">
+        <div class="drawer-prop-label">
+          <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M8 2v8M4 6l4-4 4 4"/><path d="M4 14h8"/></svg>
+          Priority
+        </div>
+        <div class="drawer-prop-value">
+          <select id="drawerPriority" onchange="drawerAutoSave()">
+            <option value="high">High</option>
+            <option value="med">Medium</option>
+            <option value="low">Low</option>
+          </select>
+        </div>
+      </div>
+      <div class="drawer-prop">
+        <div class="drawer-prop-label">
+          <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="8" cy="5" r="3"/><path d="M2 14c0-3.3 2.7-6 6-6s6 2.7 6 6"/></svg>
+          Client
+        </div>
+        <div class="drawer-prop-value">
+          <select id="drawerClientSelect" onchange="drawerAutoSave()">
+            <option value="">No client</option>
+          </select>
+        </div>
+      </div>
+      <div class="drawer-prop">
+        <div class="drawer-prop-label">
+          <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="3" width="12" height="12" rx="1.5"/><path d="M2 7h12M5 2v2M11 2v2"/></svg>
+          Due date
+        </div>
+        <div class="drawer-prop-value">
+          <input type="date" id="drawerDue" onchange="drawerAutoSave()" />
+        </div>
+      </div>
+    </div>
+    <div class="drawer-divider"></div>
+    <div class="drawer-section-label">Notes</div>
+    <textarea class="drawer-notes-input" id="drawerNotes" placeholder="Add notes, links, context…"
+      oninput="autoResizeTextarea(this); drawerAutoSave()"></textarea>
+  </div>
+  <div class="drawer-footer">
+    <div class="drawer-meta-info" id="drawerMetaInfo"></div>
+    <button class="drawer-delete-btn" onclick="drawerDelete()">
+      <svg width="11" height="11" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 5h10M6 5V3h4v2M5 5l.5 8h5L11 5"/></svg>
+      Delete task
+    </button>
+  </div>
+</div>
+
+<script>
+// ─── State ────────────────────────────────────────────────────────────────────
+let data         = { clients: [], cards: [] };
+let editingCardId = null;
+let dragCardId    = null;
+let todoCollapsed = false;
+
+const STORAGE_KEY = 'fieldwork_v1';
+const COL_LABELS  = { todo: 'Inbox', progress: 'In Progress', review: 'Review', done: 'Done' };
+const PRANK       = { high: 0, med: 1, low: 2 };
+
+// ─── Storage ──────────────────────────────────────────────────────────────────
+function save() { localStorage.setItem(STORAGE_KEY, JSON.stringify(data)); }
+
+function load() {
+  try { const r = localStorage.getItem(STORAGE_KEY); if (r) data = JSON.parse(r); } catch(e) {}
+  if (!data.clients) data.clients = [];
+  if (!data.cards)   data.cards   = [];
+  if (data.clients.length === 0) seedDemo();
+  save();
+}
+
+function seedDemo() {
+  data.clients = [
+    { id: uid(), name: 'Acme Corp',    color: '#C85A2A' },
+    { id: uid(), name: 'Spark Studio', color: '#2A7AC8' },
+  ];
+  const [c1, c2] = [data.clients[0].id, data.clients[1].id];
+  data.cards = [
+    { id: uid(), title: 'Discovery kickoff call',      client: c1, status: 'done',     priority: 'high', due: '',          notes: '', order: 100 },
+    { id: uid(), title: 'Competitive audit',           client: c1, status: 'done',     priority: 'med',  due: '',          notes: '', order: 200 },
+    { id: uid(), title: 'Homepage redesign',           client: c1, status: 'progress', priority: 'high', due: fmtDate(3),  notes: '', order: 100 },
+    { id: uid(), title: 'Write copy for landing page', client: c2, status: 'todo',     priority: 'med',  due: fmtDate(14), notes: '', order: 200 },
+    { id: uid(), title: 'Brand guidelines review',     client: c2, status: 'review',   priority: 'low',  due: fmtDate(2),  notes: '', order: 100 },
+    { id: uid(), title: 'Update component library',    client: c1, status: 'todo',     priority: 'high', due: fmtDate(4),  notes: '', order: 100 },
+  ];
+}
+
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+function uid() { return Math.random().toString(36).slice(2, 9); }
+function escHtml(s) { return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
+function fmtDate(daysFromNow) {
+  const d = new Date(); d.setDate(d.getDate() + daysFromNow);
+  return d.toISOString().split('T')[0];
+}
+function today() { return new Date().toISOString().split('T')[0]; }
+function isOverdue(due) {
+  if (!due) return false;
+  return new Date(due + 'T00:00:00') < new Date(today());
+}
+function isThisWeek(due) {
+  if (!due) return false;
+  const t   = new Date(today());
+  const d   = new Date(due + 'T00:00:00');
+  const dow = t.getDay();
+  const mon = new Date(t); mon.setDate(t.getDate() - (dow === 0 ? 6 : dow - 1));
+  const sun = new Date(mon); sun.setDate(mon.getDate() + 6);
+  return d >= mon && d <= sun;
+}
+function fmtDue(due) {
+  if (!due) return '';
+  return new Date(due + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+}
+function getClientById(id) { return data.clients.find(c => c.id === id); }
+function hexToRgb(hex) {
+  return { r: parseInt(hex.slice(1,3),16), g: parseInt(hex.slice(3,5),16), b: parseInt(hex.slice(5,7),16) };
+}
+function lighten(hex) { const {r,g,b} = hexToRgb(hex); return `rgba(${r},${g},${b},0.15)`; }
+
+// ─── Priority sort ────────────────────────────────────────────────────────────
+function sortColByPriority(col) {
+  const sorted = data.cards
+    .filter(c => c.status === col)
+    .sort((a, b) => {
+      const pa = PRANK[a.priority||'med'], pb = PRANK[b.priority||'med'];
+      return pa !== pb ? pa - pb : (a.order||0) - (b.order||0);
+    });
+  sorted.forEach((c, i) => { c.order = (i + 1) * 100; });
+}
+
+// ─── Card HTML ────────────────────────────────────────────────────────────────
+function cardHTML(card) {
+  const client   = getClientById(card.client);
+  const bg       = client ? lighten(client.color) : 'transparent';
+  const fg       = client ? client.color : 'var(--text-dim)';
+  const overdue  = card.status !== 'done' && isOverdue(card.due);
+  return `
+  <div class="card${overdue ? ' overdue-card' : ''}" id="card-${card.id}"
+    draggable="true"
+    ondragstart="onDragStart(event,'${card.id}')"
+    ondragend="onDragEnd(event)"
+    onclick="handleCardClick(event,'${card.id}')">
+    <div class="card-actions">
+      <button class="card-btn" onclick="event.stopPropagation();openEditCard('${card.id}')" title="Edit">✎</button>
+      <button class="card-btn" onclick="event.stopPropagation();deleteCard('${card.id}')" title="Delete">✕</button>
+    </div>
+    ${client ? `<div class="card-client-badge" style="background:${bg};color:${fg}">${escHtml(client.name)}</div>` : ''}
+    <div class="card-title">${escHtml(card.title)}</div>
+    <div class="card-meta">
+      ${card.due ? `<span class="card-due${overdue?' overdue':''}">⏱ ${fmtDue(card.due)}${overdue?' !':''}</span>` : '<span></span>'}
+      <span class="card-priority priority-${card.priority||'med'}">${card.priority||'med'}</span>
+    </div>
+  </div>`;
+}
+
+// ─── Render ───────────────────────────────────────────────────────────────────
+function render() {
+  const fv = document.getElementById('filterSelect').value;
+
+  ['todo','progress','review','done'].forEach(col => {
+    let cards = data.cards.filter(c => c.status === col);
+    if (fv !== 'all') cards = cards.filter(c => c.client === fv);
+    if (col === 'todo') cards = cards.filter(c => !isThisWeek(c.due));
+    cards.sort((a, b) => (a.order||0) - (b.order||0));
+    const el = document.getElementById('col-' + col);
+    el.innerHTML = cards.length ? cards.map(cardHTML).join('') : `<div class="empty-col">No tasks here</div>`;
+    document.getElementById('count-' + col).textContent = cards.length;
+  });
+
+  // To Do This Week
+  let wk = data.cards.filter(c => c.status === 'todo' && isThisWeek(c.due));
+  if (fv !== 'all') wk = wk.filter(c => c.client === fv);
+  wk.sort((a, b) => {
+    const ao = isOverdue(a.due)?0:1, bo = isOverdue(b.due)?0:1;
+    if (ao !== bo) return ao - bo;
+    if (a.due !== b.due) return a.due < b.due ? -1 : 1;
+    return (PRANK[a.priority||'med']||0) - (PRANK[b.priority||'med']||0);
+  });
+  document.getElementById('col-week').innerHTML = wk.length ? wk.map(cardHTML).join('') : `<div class="empty-col">No tasks due this week 🎉</div>`;
+  document.getElementById('count-week').textContent = wk.length;
+
+  // Stats
+  const vis = fv === 'all' ? data.cards : data.cards.filter(c => c.client === fv);
+  document.getElementById('statTotal').textContent      = vis.length;
+  document.getElementById('statClients').textContent    = fv === 'all' ? data.clients.length : 1;
+  document.getElementById('statInProgress').textContent = vis.filter(c => c.status === 'progress').length;
+  document.getElementById('statOverdue').textContent    = vis.filter(c => c.status !== 'done' && isOverdue(c.due)).length;
+
+  // Client dropdown
+  const sel = document.getElementById('filterSelect'), cur = sel.value;
+  sel.innerHTML = '<option value="all">All Clients</option>' +
+    data.clients.map(c => `<option value="${c.id}"${c.id===cur?' selected':''}>${escHtml(c.name)}</option>`).join('');
+  if (cur !== 'all' && !data.clients.find(c => c.id === cur)) sel.value = 'all';
+
+  renderClientList();
+}
+
+// ─── Collapsible Inbox ────────────────────────────────────────────────────────
+function toggleTodo() {
+  todoCollapsed = !todoCollapsed;
+  document.getElementById('col-todo-wrap').classList.toggle('collapsed', todoCollapsed);
+  document.getElementById('todo-collapse-icon').title = todoCollapsed ? 'Expand' : 'Collapse';
+}
+
+// ─── Clients ──────────────────────────────────────────────────────────────────
+function renderClientList() {
+  const el = document.getElementById('clientList');
+  if (!el) return;
+  el.innerHTML = data.clients.map(c =>
+    `<div class="client-chip" style="background:${lighten(c.color)};color:${c.color}">
+      ${escHtml(c.name)}<button onclick="removeClient('${c.id}')">×</button>
+    </div>`).join('');
+}
+function addClient() {
+  const name = document.getElementById('newClientName').value.trim();
+  const color = document.getElementById('newClientColor').value;
+  if (!name) return;
+  data.clients.push({ id: uid(), name, color });
+  document.getElementById('newClientName').value = '';
+  save(); render();
+}
+function removeClient(id) {
+  if (!confirm('Remove this client?')) return;
+  data.clients = data.clients.filter(c => c.id !== id);
+  data.cards.forEach(c => { if (c.client === id) c.client = ''; });
+  save(); render();
+}
+function openClientManager() {
+  document.getElementById('clientModal').classList.remove('hidden');
+}
+
+// ─── Card Modal ───────────────────────────────────────────────────────────────
+function populateClientDropdown(selId, selectedId) {
+  document.getElementById(selId).innerHTML =
+    '<option value="">— No Client —</option>' +
+    data.clients.map(c => `<option value="${c.id}"${c.id===selectedId?' selected':''}>${escHtml(c.name)}</option>`).join('');
+}
+
+function openAddCard(col) {
+  editingCardId = null;
+  document.getElementById('modalTitle').textContent    = 'Add Task';
+  document.getElementById('cardTitleInput').value      = '';
+  document.getElementById('cardStatusInput').value     = col || 'todo';
+  document.getElementById('cardPriorityInput').value   = 'med';
+  document.getElementById('cardDueInput').value        = '';
+  document.getElementById('cardNotesInput').value      = '';
+  populateClientDropdown('cardClientInput', '');
+  document.getElementById('cardModal').classList.remove('hidden');
+  setTimeout(() => document.getElementById('cardTitleInput').focus(), 50);
+}
+
+function openEditCard(id) {
+  const card = data.cards.find(c => c.id === id);
+  if (!card) return;
+  editingCardId = id;
+  document.getElementById('modalTitle').textContent    = 'Edit Task';
+  document.getElementById('cardTitleInput').value      = card.title;
+  document.getElementById('cardStatusInput').value     = card.status;
+  document.getElementById('cardPriorityInput').value   = card.priority || 'med';
+  document.getElementById('cardDueInput').value        = card.due || '';
+  document.getElementById('cardNotesInput').value      = card.notes || '';
+  populateClientDropdown('cardClientInput', card.client || '');
+  document.getElementById('cardModal').classList.remove('hidden');
+}
+
+function saveCard() {
+  const title = document.getElementById('cardTitleInput').value.trim();
+  if (!title) { document.getElementById('cardTitleInput').focus(); return; }
+  const card = {
+    id:       editingCardId || uid(),
+    title,
+    client:   document.getElementById('cardClientInput').value,
+    status:   document.getElementById('cardStatusInput').value,
+    priority: document.getElementById('cardPriorityInput').value,
+    due:      document.getElementById('cardDueInput').value,
+    notes:    document.getElementById('cardNotesInput').value,
+  };
+  if (editingCardId) {
+    const idx = data.cards.findIndex(c => c.id === editingCardId);
+    const prev = data.cards[idx].status;
+    card.order = data.cards[idx].order;
+    data.cards[idx] = card;
+    sortColByPriority(card.status);
+    if (prev !== card.status) sortColByPriority(prev);
+  } else {
+    const existing = data.cards.filter(c => c.status === card.status);
+    card.order = existing.length ? Math.min(...existing.map(c => c.order||0)) - 100 : 1000;
+    data.cards.push(card);
+    sortColByPriority(card.status);
+  }
+  save(); render();
+  closeModal('cardModal');
+  toast(editingCardId ? 'Task updated' : 'Task added');
+}
+
+function deleteCard(id) {
+  data.cards = data.cards.filter(c => c.id !== id);
+  save(); render();
+  toast('Task deleted');
+}
+function closeModal(id) { document.getElementById(id).classList.add('hidden'); }
+
+// ─── Drag & Drop ──────────────────────────────────────────────────────────────
+let dropIndicator = null, dragOverCol = null, dragOverIndex = null, didDrag = false;
+
+function getDropIndex(colEl, y) {
+  const cards = [...colEl.querySelectorAll('.card:not(.dragging)')];
+  for (let i = 0; i < cards.length; i++) {
+    const r = cards[i].getBoundingClientRect();
+    if (y < r.top + r.height / 2) return i;
+  }
+  return cards.length;
+}
+function showDropIndicator(colEl, idx) {
+  removeDropIndicator();
+  dropIndicator = document.createElement('div');
+  dropIndicator.className = 'drop-indicator';
+  const cards = [...colEl.querySelectorAll('.card:not(.dragging)')];
+  if (idx >= cards.length) colEl.appendChild(dropIndicator);
+  else colEl.insertBefore(dropIndicator, cards[idx]);
+}
+function removeDropIndicator() { if (dropIndicator) { dropIndicator.remove(); dropIndicator = null; } }
+
+function onDragStart(e, id) {
+  dragCardId = id;
+  e.dataTransfer.effectAllowed = 'move';
+  e.dataTransfer.setData('text/plain', id);
+  setTimeout(() => { const el = document.getElementById('card-'+id); if (el) el.classList.add('dragging'); }, 0);
+}
+function onDragEnd() {
+  didDrag = true; setTimeout(() => { didDrag = false; }, 100);
+  document.querySelectorAll('.card.dragging').forEach(c => c.classList.remove('dragging'));
+  removeDropIndicator();
+  document.querySelectorAll('.col-body').forEach(c => c.classList.remove('drag-over'));
+  dragOverCol = null; dragOverIndex = null;
+}
+function onDragOver(e) {
+  e.preventDefault(); e.dataTransfer.dropEffect = 'move';
+  const col = e.currentTarget.id.replace('col-', '');
+  const idx = getDropIndex(e.currentTarget, e.clientY);
+  if (col !== dragOverCol || idx !== dragOverIndex) {
+    dragOverCol = col; dragOverIndex = idx;
+    document.querySelectorAll('.col-body').forEach(c => c.classList.remove('drag-over'));
+    e.currentTarget.classList.add('drag-over');
+    showDropIndicator(e.currentTarget, idx);
+  }
+}
+function onDragLeave(e) {
+  if (!e.currentTarget.contains(e.relatedTarget)) {
+    e.currentTarget.classList.remove('drag-over');
+    removeDropIndicator(); dragOverCol = null; dragOverIndex = null;
+  }
+}
+function onDrop(e, col) {
+  e.preventDefault(); removeDropIndicator();
+  e.currentTarget.classList.remove('drag-over');
+  if (!dragCardId) return;
+  const card = data.cards.find(c => c.id === dragCardId);
+  if (!card) { dragCardId = null; return; }
+
+  const fv = document.getElementById('filterSelect').value;
+  let peers = data.cards.filter(c => c.status === col && c.id !== dragCardId);
+  if (fv !== 'all') peers = peers.filter(c => c.client === fv);
+  peers.sort((a,b) => (a.order||0)-(b.order||0));
+
+  const di = dragOverIndex !== null ? dragOverIndex : peers.length;
+  let newOrder;
+  if      (!peers.length)      newOrder = 1000;
+  else if (di === 0)           newOrder = (peers[0].order||0) - 100;
+  else if (di >= peers.length) newOrder = (peers[peers.length-1].order||0) + 100;
+  else                         newOrder = ((peers[di-1].order||0) + (peers[di].order||0)) / 2;
+
+  const prev = card.status;
+  card.status = col; card.order = newOrder;
+  sortColByPriority(col);
+  if (prev !== col) sortColByPriority(prev);
+  save(); render();
+  dragCardId = null; dragOverCol = null; dragOverIndex = null;
+}
+
+// ─── Drawer ───────────────────────────────────────────────────────────────────
+let drawerCardId = null, drawerSaveTimer = null;
+
+function handleCardClick(e, id) { if (didDrag) { didDrag = false; return; } openDrawer(id); }
+
+function openDrawer(id) {
+  const card = data.cards.find(c => c.id === id);
+  if (!card) return;
+  drawerCardId = id;
+
+  const titleEl = document.getElementById('drawerTitle');
+  titleEl.value = card.title; autoResizeTextarea(titleEl);
+
+  document.getElementById('drawerStatus').value   = card.status;
+  document.getElementById('drawerPriority').value = card.priority || 'med';
+  document.getElementById('drawerDue').value      = card.due || '';
+  const notesEl = document.getElementById('drawerNotes');
+  notesEl.value = card.notes || ''; autoResizeTextarea(notesEl);
+
+  populateClientDropdown('drawerClientSelect', card.client || '');
+
+  const client = getClientById(card.client);
+  document.getElementById('drawerClientLabel').textContent = client ? client.name : 'No client';
+  document.getElementById('drawerColName').textContent     = COL_LABELS[card.status] || card.status;
+
+  const overdue = card.status !== 'done' && isOverdue(card.due);
+  const meta    = document.getElementById('drawerMetaInfo');
+  meta.textContent = card.due ? (overdue ? '⚠ Overdue · ' : '') + 'Due ' + fmtDue(card.due) : '';
+  meta.style.color = overdue ? '#E07878' : '';
+
+  document.getElementById('drawerBackdrop').classList.remove('hidden');
+  document.getElementById('detailDrawer').classList.remove('hidden');
+  document.body.style.overflow = 'hidden';
+  titleEl.focus();
+}
+
+function closeDrawer() {
+  if (drawerSaveTimer) { clearTimeout(drawerSaveTimer); drawerSaveTimer = null; flushDrawerSave(); }
+  document.getElementById('drawerBackdrop').classList.add('hidden');
+  document.getElementById('detailDrawer').classList.add('hidden');
+  document.body.style.overflow = '';
+  drawerCardId = null;
+}
+
+function drawerAutoSave() {
+  if (drawerSaveTimer) clearTimeout(drawerSaveTimer);
+  drawerSaveTimer = setTimeout(flushDrawerSave, 600);
+}
+
+function flushDrawerSave() {
+  if (!drawerCardId) return;
+  const card = data.cards.find(c => c.id === drawerCardId);
+  if (!card) return;
+
+  const prev      = card.status;
+  const newStatus = document.getElementById('drawerStatus').value;
+  card.title    = document.getElementById('drawerTitle').value.trim() || card.title;
+  card.status   = newStatus;
+  card.priority = document.getElementById('drawerPriority').value;
+  card.client   = document.getElementById('drawerClientSelect').value;
+  card.due      = document.getElementById('drawerDue').value;
+  card.notes    = document.getElementById('drawerNotes').value;
+
+  sortColByPriority(newStatus);
+  if (prev !== newStatus) sortColByPriority(prev);
+
+  const client = getClientById(card.client);
+  document.getElementById('drawerClientLabel').textContent = client ? client.name : 'No client';
+  document.getElementById('drawerColName').textContent     = COL_LABELS[newStatus] || newStatus;
+
+  const overdue = card.status !== 'done' && isOverdue(card.due);
+  const meta    = document.getElementById('drawerMetaInfo');
+  meta.textContent = card.due ? (overdue ? '⚠ Overdue · ' : '') + 'Due ' + fmtDue(card.due) : '';
+  meta.style.color = overdue ? '#E07878' : '';
+
+  save(); render();
+}
+
+function drawerOpenEdit() {
+  const id = drawerCardId; closeDrawer(); openEditCard(id);
+}
+function drawerDelete() {
+  if (!drawerCardId) return;
+  const card = data.cards.find(c => c.id === drawerCardId);
+  if (!card || !confirm(`Delete "${card.title}"?`)) return;
+  const id = drawerCardId; closeDrawer(); deleteCard(id);
+}
+function autoResizeTextarea(el) { el.style.height = 'auto'; el.style.height = el.scrollHeight + 'px'; }
+
+// ─── Filter / Toast / Keys ────────────────────────────────────────────────────
+function filterByClient() { render(); }
+
+function toast(msg) {
+  const el = document.createElement('div');
+  el.className = 'toast'; el.textContent = msg;
+  document.body.appendChild(el);
+  setTimeout(() => el.remove(), 2200);
+}
+
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') {
+    if (!document.getElementById('detailDrawer').classList.contains('hidden')) { closeDrawer(); return; }
+    closeModal('cardModal'); closeModal('clientModal');
+  }
+  if (e.key === 'Enter' && !document.getElementById('cardModal').classList.contains('hidden')) {
+    if (document.activeElement.tagName !== 'TEXTAREA') saveCard();
+  }
+});
+document.querySelectorAll('.modal-backdrop').forEach(b => {
+  b.addEventListener('click', e => { if (e.target === b) b.classList.add('hidden'); });
+});
+
+// ─── Init ─────────────────────────────────────────────────────────────────────
+load();
+render();
+</script>
+</body>
+</html>

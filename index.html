@@ -703,9 +703,9 @@ function cardHTML(card) {
     onclick="handleCardClick(event,'${card.id}')">
     <div class="card-actions absolute top-1.5 right-2 gap-1">
       <button onclick="event.stopPropagation();openEditCard('${card.id}')"
-        class="w-5 h-5 flex items-center justify-center rounded bg-transparent border border-border text-[10px] text-muted-foreground hover:bg-zinc-700 hover:text-brand hover:border-brand transition-all">✎</button>
+        class="w-5 h-5 flex items-center justify-center rounded bg-transparent border border-border text-[10px] text-muted-foreground hover:bg-zinc-700 hover:bg-zinc-700 hover:border-brand transition-all">✎</button>
       <button onclick="event.stopPropagation();deleteCard('${card.id}')"
-        class="w-5 h-5 flex items-center justify-center rounded bg-transparent border border-border text-[10px] text-muted-foreground hover:bg-zinc-700 hover:text-brand hover:border-brand transition-all">✕</button>
+        class="w-5 h-5 flex items-center justify-center rounded bg-transparent border border-border text-[10px] text-muted-foreground hover:bg-zinc-700 hover:bg-zinc-700 hover:border-brand transition-all">✕</button>
     </div>
     ${cl ? `<div class="inline-flex items-center text-[10px] font-medium px-1.5 py-0.5 rounded mb-1.5" style="background:${lighten(cl.color)};color:${cl.color}">${escHtml(cl.name)}</div>` : ''}
     <div class="text-[12.5px] leading-snug mb-2 text-foreground pr-6">${escHtml(card.title)}</div>

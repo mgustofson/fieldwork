@@ -900,7 +900,7 @@ function openDrawer(id) {
   meta.textContent=card.due?(ov?'⚠ Overdue · ':'')+' Due '+fmtDue(card.due):'';
   meta.style.color=ov?'rgb(248,113,113)':'';
   document.getElementById('drawerBackdrop').classList.remove('hidden');
-  document.getElementById('detailDrawer').classList.remove('hidden');
+  const drawer = document.getElementById('detailDrawer'); drawer.classList.remove('hidden'); drawer.style.animation = 'none'; drawer.offsetHeight; // force reflow drawer.style.animation = '';
   document.body.style.overflow='hidden';
   setTimeout(() => { autoResizeTextarea(titleEl); autoResizeTextarea(notesEl); titleEl.focus(); }, 10);
 }

@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Fieldwork - Project Tracking</title>
+<title>Fieldwork — Client Kanban</title>
 <script src="https://cdn.tailwindcss.com"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
@@ -54,7 +54,7 @@ tailwind.config = {
 <style>
   /* ── shadcn CSS tokens — light mode default ── */
   :root {
-    --background:            0 0% 96.1%;
+    --background:            0 0% 100%;
     --foreground:            240 10% 3.9%;
     --card:                  0 0% 100%;
     --card-foreground:       240 10% 3.9%;
@@ -99,6 +99,32 @@ tailwind.config = {
   ::-webkit-scrollbar { width: 4px; height: 4px; }
   ::-webkit-scrollbar-track { background: transparent; }
   ::-webkit-scrollbar-thumb { background: hsl(240 5.9% 85%); border-radius: 4px; }
+
+  /* Column status colors */
+  :root {
+    --col-todo:     243 75% 59%;
+    --col-week:     0 72% 60%;
+    --col-progress: 168 68% 43%;
+    --col-review:   38 80% 57%;
+    --col-done:     142 43% 54%;
+  }
+  .col-header-todo     { background: hsl(var(--col-todo)); border-color: hsl(var(--col-todo)); }
+  .col-header-week     { background: hsl(var(--col-week)); border-color: hsl(var(--col-week)); }
+  .col-header-progress { background: hsl(var(--col-progress)); border-color: hsl(var(--col-progress)); }
+  .col-header-review   { background: hsl(var(--col-review)); border-color: hsl(var(--col-review)); }
+  .col-header-done     { background: hsl(var(--col-done)); border-color: hsl(var(--col-done)); }
+
+  .col-body-todo     { background: hsl(var(--col-todo) / 0.05); }
+  .col-body-week     { background: hsl(var(--col-week) / 0.05); }
+  .col-body-progress { background: hsl(var(--col-progress) / 0.05); }
+  .col-body-review   { background: hsl(var(--col-review) / 0.05); }
+  .col-body-done     { background: hsl(var(--col-done) / 0.05); }
+
+  .col-border-todo     { border-color: hsl(var(--col-todo) / 0.3); }
+  .col-border-week     { border-color: hsl(var(--col-week) / 0.3); }
+  .col-border-progress { border-color: hsl(var(--col-progress) / 0.3); }
+  .col-border-review   { border-color: hsl(var(--col-review) / 0.3); }
+  .col-border-done     { border-color: hsl(var(--col-done) / 0.3); }
 
   /* Tailwind can't do these dynamically */
   .col-dot-todo     { background: hsl(243 75% 59%); }
@@ -257,85 +283,80 @@ tailwind.config = {
   <div class="flex flex-1 p-5 gap-3 overflow-x-auto items-start">
 
     <!-- Inbox (collapsible) -->
-    <div class="column-collapsible flex-none w-[270px] flex flex-col bg-card border border-border rounded-lg overflow-hidden" data-col="todo" id="col-todo-wrap">
-      <div class="col-header-inner flex items-center justify-between px-3 py-2.5 border-b border-border cursor-pointer" onclick="toggleTodo()">
-        <div class="col-title-text flex items-center gap-2 text-xs font-medium text-muted-foreground">
-          <span class="col-dot w-2 h-2 rounded-full flex-shrink-0 col-dot-todo"></span>
+    <div class="column-collapsible flex-none w-[270px] flex flex-col border col-border-todo rounded-lg overflow-hidden" data-col="todo" id="col-todo-wrap">
+      <div class="col-header-inner col-header-todo flex items-center justify-between px-3 py-2 cursor-pointer" onclick="toggleTodo()">
+        <div class="col-title-text flex items-center gap-2 text-xs font-bold text-white uppercase tracking-wide">
           Inbox
         </div>
         <div class="flex items-center gap-2" onclick="event.stopPropagation()">
-          <span id="count-todo" class="text-[11px] text-muted-foreground">0</span>
-          <button onclick="openAddCard('todo')" class="text-muted-foreground hover:text-foreground text-base leading-none transition-colors px-0.5">+</button>
-          <button id="todo-collapse-icon" onclick="toggleTodo()" class="col-collapse-btn flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors rounded p-0.5 hover:bg-secondary">
+          <span id="count-todo" class="text-[11px] text-white/80 font-medium">0</span>
+          <button onclick="openAddCard('todo')" class="text-white/80 hover:text-white text-base leading-none transition-colors px-0.5">+</button>
+          <button id="todo-collapse-icon" onclick="toggleTodo()" class="col-collapse-btn flex items-center justify-center text-white/80 hover:text-white transition-colors rounded p-0.5">
             <svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M2 4l3-3 3 3M2 7l3 3 3-3"/></svg>
           </button>
         </div>
       </div>
-      <div id="col-todo" class="col-drop-zone col-body-collapsible p-2 flex flex-col gap-1 min-h-[80px]"
+      <div id="col-todo" class="col-drop-zone col-body-todo col-body-collapsible p-2 flex flex-col gap-1 min-h-[80px]"
         ondragover="onDragOver(event)" ondrop="onDrop(event,'todo')" ondragleave="onDragLeave(event)"></div>
     </div>
 
     <!-- This Week -->
-    <div class="flex-none w-[270px] flex flex-col bg-card border border-border rounded-lg overflow-hidden" data-col="week">
-      <div class="flex items-center justify-between px-3 py-2.5 border-b border-border">
-        <div class="flex items-center gap-2 text-xs font-medium text-muted-foreground">
-          <span class="w-2 h-2 rounded-full flex-shrink-0 col-dot-week"></span>
+    <div class="flex-none w-[270px] flex flex-col border col-border-week rounded-lg overflow-hidden" data-col="week">
+      <div class="col-header-week flex items-center justify-between px-3 py-2">
+        <div class="flex items-center gap-2 text-xs font-bold text-white uppercase tracking-wide">
           To Do This Week
         </div>
         <div class="flex items-center gap-2">
-          <span id="count-week" class="text-[11px] text-muted-foreground">0</span>
-          <span class="text-[10px] font-medium text-muted-foreground bg-secondary border border-border rounded px-1.5 py-0.5">auto</span>
+          <span id="count-week" class="text-[11px] text-white/80 font-medium">0</span>
+          <span class="text-[10px] font-medium text-white/70 border border-white/30 rounded px-1.5 py-0.5">auto</span>
         </div>
       </div>
-      <div id="col-week" class="col-drop-zone p-2 flex flex-col gap-1 min-h-[80px]"
+      <div id="col-week" class="col-drop-zone col-body-week p-2 flex flex-col gap-1 min-h-[80px]"
         ondragover="onDragOver(event)" ondrop="onDrop(event,'todo')" ondragleave="onDragLeave(event)"></div>
     </div>
 
     <!-- In Progress -->
-    <div class="flex-none w-[270px] flex flex-col bg-card border border-border rounded-lg overflow-hidden" data-col="progress">
-      <div class="flex items-center justify-between px-3 py-2.5 border-b border-border">
-        <div class="flex items-center gap-2 text-xs font-medium text-muted-foreground">
-          <span class="w-2 h-2 rounded-full flex-shrink-0 col-dot-progress"></span>
+    <div class="flex-none w-[270px] flex flex-col border col-border-progress rounded-lg overflow-hidden" data-col="progress">
+      <div class="col-header-progress flex items-center justify-between px-3 py-2">
+        <div class="flex items-center gap-2 text-xs font-bold text-white uppercase tracking-wide">
           In Progress
         </div>
         <div class="flex items-center gap-2">
-          <span id="count-progress" class="text-[11px] text-muted-foreground">0</span>
-          <button onclick="openAddCard('progress')" class="text-muted-foreground hover:text-foreground text-base leading-none transition-colors px-0.5">+</button>
+          <span id="count-progress" class="text-[11px] text-white/80 font-medium">0</span>
+          <button onclick="openAddCard('progress')" class="text-white/80 hover:text-white text-base leading-none transition-colors px-0.5">+</button>
         </div>
       </div>
-      <div id="col-progress" class="col-drop-zone p-2 flex flex-col gap-1 min-h-[80px]"
+      <div id="col-progress" class="col-drop-zone col-body-progress p-2 flex flex-col gap-1 min-h-[80px]"
         ondragover="onDragOver(event)" ondrop="onDrop(event,'progress')" ondragleave="onDragLeave(event)"></div>
     </div>
 
     <!-- Review -->
-    <div class="flex-none w-[270px] flex flex-col bg-card border border-border rounded-lg overflow-hidden" data-col="review">
-      <div class="flex items-center justify-between px-3 py-2.5 border-b border-border">
-        <div class="flex items-center gap-2 text-xs font-medium text-muted-foreground">
-          <span class="w-2 h-2 rounded-full flex-shrink-0 col-dot-review"></span>
+    <div class="flex-none w-[270px] flex flex-col border col-border-review rounded-lg overflow-hidden" data-col="review">
+      <div class="col-header-review flex items-center justify-between px-3 py-2">
+        <div class="flex items-center gap-2 text-xs font-bold text-white uppercase tracking-wide">
           Review
         </div>
         <div class="flex items-center gap-2">
-          <span id="count-review" class="text-[11px] text-muted-foreground">0</span>
-          <button onclick="openAddCard('review')" class="text-muted-foreground hover:text-foreground text-base leading-none transition-colors px-0.5">+</button>
+          <span id="count-review" class="text-[11px] text-white/80 font-medium">0</span>
+          <button onclick="openAddCard('review')" class="text-white/80 hover:text-white text-base leading-none transition-colors px-0.5">+</button>
         </div>
       </div>
-      <div id="col-review" class="col-drop-zone p-2 flex flex-col gap-1 min-h-[80px]"
+      <div id="col-review" class="col-drop-zone col-body-review p-2 flex flex-col gap-1 min-h-[80px]"
         ondragover="onDragOver(event)" ondrop="onDrop(event,'review')" ondragleave="onDragLeave(event)"></div>
     </div>
 
     <!-- Done -->
-    <div class="flex-none w-[270px] flex flex-col bg-card border border-border rounded-lg overflow-hidden" data-col="done">
-      <div class="flex items-center justify-between px-3 py-2.5 border-b border-border">
-        <div class="flex items-center gap-2 text-xs font-medium text-muted-foreground">
-          <span class="w-2 h-2 rounded-full flex-shrink-0 col-dot-done"></span>
+    <div class="flex-none w-[270px] flex flex-col border col-border-done rounded-lg overflow-hidden" data-col="done">
+      <div class="col-header-done flex items-center justify-between px-3 py-2">
+        <div class="flex items-center gap-2 text-xs font-bold text-white uppercase tracking-wide">
           Done
         </div>
         <div class="flex items-center gap-2">
-          <span id="count-done" class="text-[11px] text-muted-foreground">0</span>
-          <button onclick="openAddCard('done')" class="text-muted-foreground hover:text-foreground text-base leading-none transition-colors px-0.5">+</button>
+          <span id="count-done" class="text-[11px] text-white/80 font-medium">0</span>
+          <button onclick="openAddCard('done')" class="text-white/80 hover:text-white text-base leading-none transition-colors px-0.5">+</button>
         </div>
       </div>
-      <div id="col-done" class="col-drop-zone p-2 flex flex-col gap-1 min-h-[80px]"
+      <div id="col-done" class="col-drop-zone col-body-done p-2 flex flex-col gap-1 min-h-[80px]"
         ondragover="onDragOver(event)" ondrop="onDrop(event,'done')" ondragleave="onDragLeave(event)"></div>
     </div>
 
@@ -527,8 +548,8 @@ function toggleTheme() {
 })();
 
 // ─── CONFIG ───────────────────────────────────────────────────────────────────
-const SUPABASE_URL      = 'https://xdtswmevexfmnhzcuqsj.supabase.co';
-const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhkdHN3bWV2ZXhmbW5oemN1cXNqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzE5NjEzMjksImV4cCI6MjA4NzUzNzMyOX0.qXUngq8Np59di25C7gF9vccJ2WytMpAw4tXw4rG4Tlc';
+const SUPABASE_URL      = 'PASTE_YOUR_SUPABASE_URL_HERE';
+const SUPABASE_ANON_KEY = 'PASTE_YOUR_SUPABASE_ANON_KEY_HERE';
 
 // ─── State ────────────────────────────────────────────────────────────────────
 let sb, currentUser;
@@ -703,9 +724,9 @@ function cardHTML(card) {
     onclick="handleCardClick(event,'${card.id}')">
     <div class="card-actions absolute top-1.5 right-2 gap-1">
       <button onclick="event.stopPropagation();openEditCard('${card.id}')"
-        class="w-5 h-5 flex items-center justify-center rounded bg-transparent border border-border text-[10px] text-muted-foreground hover:bg-brand hover:text-white hover:border-brand transition-all">✎</button>
+        class="w-5 h-5 flex items-center justify-center rounded bg-zinc-700 border border-border text-[10px] text-muted-foreground hover:bg-brand hover:text-white hover:border-brand transition-all">✎</button>
       <button onclick="event.stopPropagation();deleteCard('${card.id}')"
-        class="w-5 h-5 flex items-center justify-center rounded bg-transparent border border-border text-[10px] text-muted-foreground hover:bg-brand hover:text-white hover:border-brand transition-all">✕</button>
+        class="w-5 h-5 flex items-center justify-center rounded bg-zinc-700 border border-border text-[10px] text-muted-foreground hover:bg-brand hover:text-white hover:border-brand transition-all">✕</button>
     </div>
     ${cl ? `<div class="inline-flex items-center text-[10px] font-medium px-1.5 py-0.5 rounded mb-1.5" style="background:${lighten(cl.color)};color:${cl.color}">${escHtml(cl.name)}</div>` : ''}
     <div class="text-[12.5px] leading-snug mb-2 text-foreground pr-6">${escHtml(card.title)}</div>

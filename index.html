@@ -902,7 +902,7 @@ function openDrawer(id) {
   document.getElementById('drawerBackdrop').classList.remove('hidden');
   document.getElementById('detailDrawer').classList.remove('hidden');
   document.body.style.overflow='hidden';
-  titleEl.focus();
+  setTimeout(() => { autoResizeTextarea(titleEl); autoResizeTextarea(notesEl); titleEl.focus(); }, 10);
 }
 function closeDrawer() {
   if(drawerSaveTimer){clearTimeout(drawerSaveTimer);drawerSaveTimer=null;flushDrawerSave();}

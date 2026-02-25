@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en" class="light">
+<html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -13,26 +13,21 @@ tailwind.config = {
     extend: {
       fontFamily: { sans: ['Inter','system-ui','sans-serif'] },
       colors: {
-        background:  'hsl(240 10% 3.9%)',
-        foreground:  'hsl(0 0% 98%)',
-        card:        'hsl(240 10% 3.9%)',
-        'card-foreground': 'hsl(0 0% 98%)',
-        popover:     'hsl(240 10% 3.9%)',
-        primary:     'hsl(240 5.9% 10%)',
-        'primary-foreground': 'hsl(0 0% 98%)',
-        secondary:   'hsl(240 3.7% 15.9%)',
-        'secondary-foreground': 'hsl(0 0% 98%)',
-        muted:       'hsl(240 3.7% 15.9%)',
-        'muted-foreground': 'hsl(240 5% 64.9%)',
-        accent:      'hsl(240 3.7% 15.9%)',
-        'accent-foreground': 'hsl(0 0% 98%)',
-        destructive: 'hsl(0 62.8% 30.6%)',
-        border:      'hsl(240 3.7% 15.9%)',
-        input:       'hsl(240 3.7% 15.9%)',
-        ring:        'hsl(240 4.9% 83.9%)',
-        // Custom brand accent
-        brand:       'hsl(243 75% 59%)',
-        'brand-hover': 'hsl(243 75% 65%)',
+        background:           'hsl(var(--background))',
+        foreground:           'hsl(var(--foreground))',
+        card:                 'hsl(var(--card))',
+        'card-foreground':    'hsl(var(--card-foreground))',
+        secondary:            'hsl(var(--secondary))',
+        'secondary-foreground':'hsl(var(--secondary-foreground))',
+        muted:                'hsl(var(--muted))',
+        'muted-foreground':   'hsl(var(--muted-foreground))',
+        accent:               'hsl(var(--accent))',
+        'accent-foreground':  'hsl(var(--accent-foreground))',
+        destructive:          'hsl(var(--destructive))',
+        border:               'hsl(var(--border))',
+        input:                'hsl(var(--input))',
+        brand:                'hsl(var(--brand))',
+        'brand-hover':        'hsl(var(--brand-hover))',
       },
       borderRadius: { lg:'0.5rem', md:'0.375rem', sm:'0.25rem' },
       keyframes: {
@@ -57,12 +52,53 @@ tailwind.config = {
 </script>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
 <style>
+  /* ── shadcn CSS tokens — light mode default ── */
+  :root {
+    --background:            0 0% 100%;
+    --foreground:            240 10% 3.9%;
+    --card:                  0 0% 100%;
+    --card-foreground:       240 10% 3.9%;
+    --secondary:             240 4.8% 95.9%;
+    --secondary-foreground:  240 5.9% 10%;
+    --muted:                 240 4.8% 95.9%;
+    --muted-foreground:      240 3.8% 46.1%;
+    --accent:                240 4.8% 95.9%;
+    --accent-foreground:     240 5.9% 10%;
+    --destructive:           0 84.2% 60.2%;
+    --border:                240 5.9% 90%;
+    --input:                 240 5.9% 90%;
+    --brand:                 243 75% 59%;
+    --brand-hover:           243 75% 65%;
+  }
+
+  /* ── dark mode — auto via OS preference ── */
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --background:            240 10% 3.9%;
+      --foreground:            0 0% 98%;
+      --card:                  240 10% 3.9%;
+      --card-foreground:       0 0% 98%;
+      --secondary:             240 3.7% 15.9%;
+      --secondary-foreground:  0 0% 98%;
+      --muted:                 240 3.7% 15.9%;
+      --muted-foreground:      240 5% 64.9%;
+      --accent:                240 3.7% 15.9%;
+      --accent-foreground:     0 0% 98%;
+      --destructive:           0 62.8% 30.6%;
+      --border:                240 3.7% 15.9%;
+      --input:                 240 3.7% 15.9%;
+      --brand:                 243 75% 59%;
+      --brand-hover:           243 75% 65%;
+    }
+    ::-webkit-scrollbar-thumb { background: hsl(240 3.7% 20%); }
+  }
+
   /* Minimal global resets */
   *, *::before, *::after { box-sizing: border-box; }
   body { -webkit-font-smoothing: antialiased; }
   ::-webkit-scrollbar { width: 4px; height: 4px; }
   ::-webkit-scrollbar-track { background: transparent; }
-  ::-webkit-scrollbar-thumb { background: hsl(240 3.7% 20%); border-radius: 4px; }
+  ::-webkit-scrollbar-thumb { background: hsl(240 5.9% 85%); border-radius: 4px; }
 
   /* Tailwind can't do these dynamically */
   .col-dot-todo     { background: hsl(243 75% 59%); }
@@ -176,6 +212,10 @@ tailwind.config = {
       <button onclick="openAddCard()"
         class="bg-brand hover:bg-brand-hover text-white rounded-md px-3 py-1 text-xs font-medium transition-colors">
         + Add Task
+      </button>
+      <button id="themeToggle" onclick="toggleTheme()"
+        class="w-8 h-8 flex items-center justify-center border border-border rounded-md text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors" title="Toggle theme">
+        <span id="themeIcon">🌙</span>
       </button>
       <button onclick="signOut()"
         class="flex items-center gap-1.5 border border-border rounded-md px-2.5 py-1 text-xs text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors">
@@ -458,9 +498,32 @@ tailwind.config = {
 </div>
 
 <script>
+
+// ─── Theme Toggle ─────────────────────────────────────────────────────────────
+function applyTheme(dark) {
+  document.documentElement.classList.toggle('dark', dark);
+  const icon = document.getElementById('themeIcon');
+  if (icon) icon.textContent = dark ? '☀️' : '🌙';
+  localStorage.setItem('fw-theme', dark ? 'dark' : 'light');
+}
+
+function toggleTheme() {
+  applyTheme(!document.documentElement.classList.contains('dark'));
+}
+
+// Apply saved theme or system preference on load
+(function() {
+  const saved = localStorage.getItem('fw-theme');
+  if (saved) {
+    applyTheme(saved === 'dark');
+  } else {
+    applyTheme(window.matchMedia('(prefers-color-scheme: dark)').matches);
+  }
+})();
+
 // ─── CONFIG ───────────────────────────────────────────────────────────────────
-const SUPABASE_URL      = 'https://xdtswmevexfmnhzcuqsj.supabase.co';
-const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhkdHN3bWV2ZXhmbW5oemN1cXNqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzE5NjEzMjksImV4cCI6MjA4NzUzNzMyOX0.qXUngq8Np59di25C7gF9vccJ2WytMpAw4tXw4rG4Tlc';
+const SUPABASE_URL      = 'PASTE_YOUR_SUPABASE_URL_HERE';
+const SUPABASE_ANON_KEY = 'PASTE_YOUR_SUPABASE_ANON_KEY_HERE';
 
 // ─── State ────────────────────────────────────────────────────────────────────
 let sb, currentUser;

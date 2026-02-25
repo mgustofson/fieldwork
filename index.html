@@ -160,7 +160,8 @@ tailwind.config = {
   .sync-error   { background: hsl(0 72% 60%); }
 
   /* Drawer animation */
-  #detailDrawer { animation: drawerIn 0.22s cubic-bezier(0.16,1,0.3,1); }
+  #detailDrawer {   transform: translateX(100%);   opacity: 0;   transition: transform 0.3s cubic-bezier(0.16,1,0.3,1), opacity 0.3s cubic-bezier(0.16,1,0.3,1); } 
+  #detailDrawer.open {   transform: translateX(0);   opacity: 1; }
 
   /* Focus ring override for inputs */
   input:focus, select:focus, textarea:focus { outline: none; border-color: hsl(243 75% 59%) !important; }
@@ -902,21 +903,20 @@ function openDrawer(id) {
   meta.textContent=card.due?(ov?'⚠ Overdue · ':'')+' Due '+fmtDue(card.due):'';
   meta.style.color=ov?'rgb(248,113,113)':'';
   document.getElementById('drawerBackdrop').classList.remove('hidden');
-  const drawer = document.getElementById('detailDrawer'); drawer.classList.remove('hidden'); drawer.style.animation = 'none'; drawer.offsetHeight; // force reflow drawer.style.animation = '';
+  const drawer = document.getElementById('detailDrawer'); drawer.classList.remove('hidden'); drawer.offsetHeight; setTimeout(() => drawer.classList.add('open'), 10); // force reflow drawer.style.animation = '';
   document.body.style.overflow='hidden';
   setTimeout(() => { autoResizeTextarea(titleEl); autoResizeTextarea(notesEl); titleEl.focus(); }, 10);
 }
 function closeDrawer() {
   if(drawerSaveTimer){clearTimeout(drawerSaveTimer);drawerSaveTimer=null;flushDrawerSave();}
   const drawer = document.getElementById('detailDrawer');
-  drawer.style.animation = 'drawerOut 0.2s cubic-bezier(0.4,0,1,1) forwards';
-  document.getElementById('drawerBackdrop').classList.add('hidden');
-  setTimeout(() => {
-    drawer.classList.add('hidden');
-    drawer.style.animation = '';
-    document.body.style.overflow='';
-    drawerCardId=null;
-  }, 200);
+  drawer.classList.remove('open');
+document.getElementById('drawerBackdrop').classList.add('hidden');
+setTimeout(() => {
+  drawer.classList.add('hidden');
+  document.body.style.overflow='';
+  drawerCardId=null;
+}, 300);
 }
 function drawerAutoSave() { if(drawerSaveTimer)clearTimeout(drawerSaveTimer); drawerSaveTimer=setTimeout(flushDrawerSave,600); }
 async function flushDrawerSave() {

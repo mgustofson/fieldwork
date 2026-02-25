@@ -442,7 +442,7 @@ const PRANK      = { high:0, med:1, low:2 };
 
 // ─── Boot ─────────────────────────────────────────────────────────────────────
 window.addEventListener('DOMContentLoaded', () => {
-  const configured = SUPABASE_URL !== 'https://xdtswmevexfmnhzcuqsj.supabase.co';
+     const configured = SUPABASE_URL.startsWith('https://') && SUPABASE_ANON_KEY.length > 20;
 
   if (typeof supabase === 'undefined' || !configured) {
     showScreen('authScreen');

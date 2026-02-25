@@ -427,8 +427,8 @@ textarea { resize:vertical; min-height:64px; }
 <script>
 // ─── CONFIG ───────────────────────────────────────────────────────────────────
 // Replace these two values with your Supabase project details before deploying
-const SUPABASE_URL = 'https://xdtswmevexfmnhzcuqsj.supabase.co';
-const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhkdHN3bWV2ZXhmbW5oemN1cXNqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzE5NjEzMjksImV4cCI6MjA4NzUzNzMyOX0.qXUngq8Np59di25C7gF9vccJ2WytMpAw4tXw4rG4Tlc';
+const SUPABASE_URL     = 'PASTE_YOUR_SUPABASE_URL_HERE';
+const SUPABASE_ANON_KEY = 'PASTE_YOUR_SUPABASE_ANON_KEY_HERE';
 
 // ─── State ────────────────────────────────────────────────────────────────────
 let sb, currentUser;
@@ -442,34 +442,39 @@ const PRANK      = { high:0, med:1, low:2 };
 
 // ─── Boot ─────────────────────────────────────────────────────────────────────
 window.addEventListener('DOMContentLoaded', () => {
-     const configured = SUPABASE_URL.startsWith('https://') && SUPABASE_ANON_KEY.length > 20;
+  const configured = SUPABASE_URL.startsWith('https://') && SUPABASE_ANON_KEY.length > 20;
 
-  if (typeof supabase === 'undefined' || !configured) {
+  if (typeof supabase === 'undefined') {
     showScreen('authScreen');
-    const msg = configured
-      ? '⚠ Could not load Supabase. Serve this file over http/https rather than opening it as a local file.'
-      : '⚠ Not configured yet — open the HTML file and replace SUPABASE_URL and SUPABASE_ANON_KEY with your Supabase project values.';
-    showMsg('authError', msg);
+    showMsg('authError', '⚠ Could not load Supabase. Serve this file over http/https rather than opening it as a local file.');
+    return;
+  }
+
+  if (!configured) {
+    showScreen('authScreen');
+    showMsg('authError', '⚠ Not configured yet — open the HTML file and replace SUPABASE_URL and SUPABASE_ANON_KEY with your Supabase project values.');
     return;
   }
 
   sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-sb.auth.onAuthStateChange((_event, session) => {
-  setTimeout(async () => {
-    if (session) {
-      currentUser = session.user;
-      document.getElementById('userEmail').textContent = currentUser.email.split('@')[0];
-      showScreen('loadingScreen');
-      await loadFromDB();
-      showScreen('app');
-      render();
-    } else {
-      currentUser = null;
-      data = { clients: [], cards: [] };
-      showScreen('authScreen');
-    }
-  }, 0);
+  sb.auth.onAuthStateChange((_event, session) => {
+    // Use setTimeout to avoid Supabase deadlock — never await inside onAuthStateChange
+    setTimeout(async () => {
+      if (session) {
+        currentUser = session.user;
+        document.getElementById('userEmail').textContent = currentUser.email.split('@')[0];
+        showScreen('loadingScreen');
+        await loadFromDB();
+        showScreen('app');
+        render();
+      } else {
+        currentUser = null;
+        data = { clients: [], cards: [] };
+        showScreen('authScreen');
+      }
+    }, 0);
+  });
 });
 
 function showScreen(id) {

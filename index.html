@@ -703,7 +703,7 @@ function cardHTML(card) {
     onclick="handleCardClick(event,'${card.id}')">
     <div class="card-actions absolute top-1.5 right-2 gap-1">
       <button onclick="event.stopPropagation();openEditCard('${card.id}')"
-        class="w-5 h-5 flex items-center justify-center rounded bg-zinc-700 border border-border text-[10px] text-muted-foreground hover:bg-brand hover:text-white hover:border-brand transition-all">✎</button>
+        class="w-5 h-5 flex items-center justify-center rounded bg-transparent border border-border text-[10px] text-muted-foreground hover:bg-transparent hover:text-brand hover:border-brand transition-all">✎</button>
       <button onclick="event.stopPropagation();deleteCard('${card.id}')"
         class="w-5 h-5 flex items-center justify-center rounded bg-zinc-700 border border-border text-[10px] text-muted-foreground hover:bg-brand hover:text-white hover:border-brand transition-all">✕</button>
     </div>

@@ -118,7 +118,12 @@ tailwind.config = {
   .column-collapsible.collapsed .col-collapse-btn { transform: rotate(90deg); }
   .col-collapse-btn { transition: transform 0.2s ease; }
 
-  .kanban-card { animation: cardIn 0.15s ease; }
+  .kanban-card { animation: cardIn 0.15s ease; box-shadow: 0 1px 3px rgba(0,0,0,0.08), 0 1px 2px rgba(0,0,0,0.04); }
+  .kanban-card:hover { box-shadow: 0 4px 12px rgba(0,0,0,0.10), 0 2px 4px rgba(0,0,0,0.06); }
+  @media (prefers-color-scheme: dark) {
+    .kanban-card { box-shadow: 0 1px 3px rgba(0,0,0,0.35), 0 1px 2px rgba(0,0,0,0.25); }
+    .kanban-card:hover { box-shadow: 0 4px 12px rgba(0,0,0,0.5), 0 2px 4px rgba(0,0,0,0.3); }
+  }
   .kanban-card.dragging { opacity: 0.3; cursor: grabbing; }
   .kanban-card:hover .card-actions { display: flex; }
   .card-actions { display: none; }
@@ -522,8 +527,8 @@ function toggleTheme() {
 })();
 
 // ─── CONFIG ───────────────────────────────────────────────────────────────────
-const SUPABASE_URL      = 'https://xdtswmevexfmnhzcuqsj.supabase.co';
-const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhkdHN3bWV2ZXhmbW5oemN1cXNqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzE5NjEzMjksImV4cCI6MjA4NzUzNzMyOX0.qXUngq8Np59di25C7gF9vccJ2WytMpAw4tXw4rG4Tlc';
+const SUPABASE_URL      = 'PASTE_YOUR_SUPABASE_URL_HERE';
+const SUPABASE_ANON_KEY = 'PASTE_YOUR_SUPABASE_ANON_KEY_HERE';
 
 // ─── State ────────────────────────────────────────────────────────────────────
 let sb, currentUser;
@@ -692,7 +697,7 @@ function cardHTML(card) {
     med:  'bg-amber-500/15 text-amber-500',
     low:  'bg-green-500/15 text-green-400',
   }[card.priority||'med'];
-  return `<div class="kanban-card${ov?' overdue-card':''} relative bg-secondary border border-border rounded-md px-3 py-2.5 cursor-grab hover:border-zinc-600 hover:bg-zinc-800/80 transition-all"
+  return `<div class="kanban-card${ov?' overdue-card':''} relative bg-card border border-border rounded-md px-3 py-2.5 cursor-grab shadow-sm hover:shadow-md hover:border-border/80 transition-all"
     id="card-${card.id}" draggable="true"
     ondragstart="onDragStart(event,'${card.id}')" ondragend="onDragEnd()"
     onclick="handleCardClick(event,'${card.id}')">

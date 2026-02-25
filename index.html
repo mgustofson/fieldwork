@@ -455,7 +455,8 @@ window.addEventListener('DOMContentLoaded', () => {
 
   sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-  sb.auth.onAuthStateChange(async (_event, session) => {
+sb.auth.onAuthStateChange((_event, session) => {
+  setTimeout(async () => {
     if (session) {
       currentUser = session.user;
       document.getElementById('userEmail').textContent = currentUser.email.split('@')[0];
@@ -468,7 +469,7 @@ window.addEventListener('DOMContentLoaded', () => {
       data = { clients: [], cards: [] };
       showScreen('authScreen');
     }
-  });
+  }, 0);
 });
 
 function showScreen(id) {
